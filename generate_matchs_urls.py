@@ -8,13 +8,14 @@ of each competition will be created, containing :
     - as well as a matches folder, which will contain the json files 
     for each scraped match.
 """
+import datetime
 import os
+import random
 import re
 import time
-import random
-import datetime
-import requests
+
 import pandas as pd
+import requests
 from bs4 import BeautifulSoup
 
 # ------ Wintry league seasons ------ #
@@ -429,7 +430,6 @@ def initialization_summer_url_links(leagues):
 
         # Create folder if not exist
         if not os.path.exists("data/" + league[3]):
-
             # Generate links for seasons and add to list
             links = []
             for i in range(2000, (datetime.datetime.now().year) + 1):
@@ -463,9 +463,11 @@ def initialization_summer_url_links(leagues):
                 df_season = df_season.drop_duplicates(subset=["Link"], keep="last")
                 df_season.reset_index(drop=True, inplace=True)
                 df_final = pd.concat([df_final, df_season])
-                print("\t✅", len(df_season), "match links for", season_match, "season ✅")
+                print(
+                    "\t✅", len(df_season), "match links for", season_match, "season ✅"
+                )
 
-            # Create directory and save dataframe 
+            # Create directory and save dataframe
             os.makedirs("data/" + league[3])
             os.makedirs("data/" + league[3] + "/matchs")
             print("\t🗂️ Folder", league[3].replace("_", " "), "created")
@@ -485,7 +487,6 @@ def initialization_winter_url_links(leagues):
 
         # Create folder if not exist
         if not os.path.exists("data/" + league[3]):
-
             # Generate links for seasons and add to list
             links = []
             for i in range(2000, (datetime.datetime.now().year) + 1):
@@ -529,7 +530,9 @@ def initialization_winter_url_links(leagues):
                 df_season = df_season.drop_duplicates(subset=["Link"], keep="last")
                 df_season.reset_index(drop=True, inplace=True)
                 df_final = pd.concat([df_final, df_season])
-                print("\t✅", len(df_season), "match links for", season_match, "season ✅")
+                print(
+                    "\t✅", len(df_season), "match links for", season_match, "season ✅"
+                )
 
             # Create directory and save dataframe
             os.makedirs("data/" + league[3])

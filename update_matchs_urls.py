@@ -5,10 +5,10 @@
 import os
 import re
 import time
-import requests
-import pandas as pd
-from bs4 import BeautifulSoup
 
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
 
 list_leagues = [
     [
@@ -250,6 +250,7 @@ list_leagues = [
         "Superettan",
     ],
 ]
+
 
 def update_matchs_urls(leagues):
     """Function to update the list of match links"""

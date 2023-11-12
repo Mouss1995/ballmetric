@@ -1,2 +1,6 @@
 /documents
 /data
+.DS_Store
+/test
+/venv
+/yaml

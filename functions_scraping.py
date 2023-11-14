@@ -237,9 +237,9 @@ def clean_season_history(match, cleaned_match):
                 dict_history = {}
                 match[team_history] = match[team_history].split("-")
                 dict_history = {
-                    "Victory": match[team_history][0],
-                    "Draw": match[team_history][1],
-                    "Defeat": match[team_history][2],
+                    "Victory": int(match[team_history][0]),
+                    "Draw": int(match[team_history][1]),
+                    "Defeat": int(match[team_history][2]),
                 }
                 match[team_history] = dict_history
                 if "Season_History" not in cleaned_match:

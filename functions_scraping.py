@@ -5,6 +5,7 @@ import json
 import math
 import re
 import time
+from datetime import datetime
 from io import StringIO
 
 import pandas as pd
@@ -154,6 +155,9 @@ def clean_general_informations(match, cleaned_match, season):
     if "Date" in match:
         cleaned_match["Date"] = match["Date"]
 
+        date_object = datetime.strptime(match["Date"], "%A %B %d, %Y")
+
+        cleaned_match["Date"] = date_object.strftime('%d-%m-%Y')
 
 def clean_competition(match, cleaned_match):
     competition = re.split(r"\s+\(", match["Competition"])

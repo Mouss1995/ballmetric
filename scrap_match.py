@@ -5,7 +5,7 @@ import os
 
 import pandas as pd
 
-from functions_scraping import (
+from functions_cleaning import (
     clean_attendance_stade_avenue,
     clean_captain,
     clean_competition,
@@ -21,8 +21,8 @@ from functions_scraping import (
     clean_xg,
     remove_empty_dicts,
     save_match,
-    scrap_match,
 )
+from functions_scraping import scraping_match
 
 selectors = [
     {
@@ -180,7 +180,7 @@ for folder in folder_matchs:
             for url in match_to_scrap:
                 try:
                     scrap_dict_clean = {}
-                    scrap_dict = scrap_match(url[1], selectors, selectors_table)
+                    scrap_dict = scraping_match(url[1], selectors, selectors_table)
                     clean_general_informations(scrap_dict, scrap_dict_clean, url[0])
                     clean_competition(scrap_dict, scrap_dict_clean)
                     clean_goals(scrap_dict, scrap_dict_clean)
@@ -197,6 +197,6 @@ for folder in folder_matchs:
                     remove_empty_dicts(scrap_dict_clean)
                     save_match(scrap_dict_clean, url[1], folder)
                     name_file = url[1].split("/")[-1].replace("-", "_")
-                    print(f"\t✅ {name_file} ✅")
+                    print(f"\t✅ {name_file}")
                 except Exception as e:
-                    print(f"Error processing {url}: {e}")
+                    print(f"Error processing {url[1]}: {e}")

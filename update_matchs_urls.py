@@ -16,21 +16,21 @@ def update_matchs_urls():
 
     df_competitions = pd.read_csv("competitions/update_competitions.csv")
 
-    for index, row in df_competitions.iterrows():
+    for _, row in df_competitions.iterrows():
         competition_name = row["name"]
-        print(f"#-------- Update matchs links for {competition_name} --------#")
+        print(f"\t===> Update matchs links for {competition_name}")
 
         folder_path = os.path.join("data", competition_name)
         if not os.path.exists(folder_path):
-            print(f"\t❌ 🗂️ Folder {competition_name} does not exist")
+            print(f"\t\t❌ 🗂️ Folder {competition_name} does not exist")
             continue
 
         urls = []
 
         # Create a dataframe for new links
-        csv_path = os.path.join(f"data {competition_name} match_urls.csv")
+        csv_path = os.path.join("data", competition_name, "match_urls.csv")
         if not os.path.exists(csv_path):
-            print(f"\t❌ 🗒️ CSV file for {competition_name} does not exist")
+            print(f"\t\t❌ 🗒️ CSV file for {competition_name} does not exist")
             continue
 
         response = requests.get(row["link"], timeout=10)
@@ -49,7 +49,7 @@ def update_matchs_urls():
                 if href_value:
                     urls.append("https://fbref.com" + href_value)
         if not urls:
-            print("\t❌ No matches to add ❌")
+            print("\t\t❌ No matches to add ❌")
             continue
 
         df_season = pd.DataFrame({"Season": season_element, "Link": urls})
@@ -61,13 +61,12 @@ def update_matchs_urls():
         len_after = len(df_matchs)
 
         if len_after - len_before == 0:
-            print("\t❌ No matches to add ❌")
+            print("\t\t❌ No matches to add ❌")
             continue
 
         df_matchs.to_csv(csv_path, index=False)
         nbre_matchs = len_after - len_before
-        print(f"\t✅ {nbre_matchs} match urls added ✅")
+        print(f"\t\t✅ {nbre_matchs} match urls added ✅")
 
 
-if __name__ == "__main__":
-    update_matchs_urls()
+update_matchs_urls()

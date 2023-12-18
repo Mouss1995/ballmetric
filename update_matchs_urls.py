@@ -11,7 +11,7 @@ import requests
 from bs4 import BeautifulSoup
 
 
-def update_matchs_urls():
+def update_matchs_urls() -> None:
     """Function to update the list of match links"""
 
     df_competitions = pd.read_csv("competitions/update_competitions.csv")
@@ -22,7 +22,7 @@ def update_matchs_urls():
 
         folder_path = os.path.join("data", competition_name)
         if not os.path.exists(folder_path):
-            print(f"\t\t❌ 🗂️ Folder {competition_name} does not exist")
+            print(f"\t\t\u274C \U0001F5C2 Folder {competition_name} does not exist")
             continue
 
         urls = []
@@ -30,7 +30,7 @@ def update_matchs_urls():
         # Create a dataframe for new links
         csv_path = os.path.join("data", competition_name, "match_urls.csv")
         if not os.path.exists(csv_path):
-            print(f"\t\t❌ 🗒️ CSV file for {competition_name} does not exist")
+            print(f"\t\t\u274C \U0001F5D2 CSV file for {competition_name} does not exist")
             continue
 
         response = requests.get(row["link"], timeout=10)
@@ -44,12 +44,14 @@ def update_matchs_urls():
 
         if season_element:
             elements_url = soup.select(".center a")
-            for element in elements_url:
-                href_value = element.get("href")
-                if href_value:
-                    urls.append("https://fbref.com" + href_value)
+            urls = [
+                "https://fbref.com" + element.get("href")
+                for element in elements_url
+                if element.get("href")
+            ]
+
         if not urls:
-            print("\t\t❌ No matches to add ❌")
+            print("\t\t\u274C No matches to add \u274C")
             continue
 
         df_season = pd.DataFrame({"Season": season_element, "Link": urls})
@@ -61,12 +63,12 @@ def update_matchs_urls():
         len_after = len(df_matchs)
 
         if len_after - len_before == 0:
-            print("\t\t❌ No matches to add ❌")
+            print("\t\t\u274C No matches to add \u274C")
             continue
 
         df_matchs.to_csv(csv_path, index=False)
         nbre_matchs = len_after - len_before
-        print(f"\t\t✅ {nbre_matchs} match urls added ✅")
+        print(f"\t\t\u2705 {nbre_matchs} match urls added \u2705")
 
-
-update_matchs_urls()
+if __name__ == "__main__":
+    update_matchs_urls()

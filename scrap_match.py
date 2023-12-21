@@ -1,5 +1,6 @@
-# pylint: disable=missing-module-docstring
-# pylint: disable=missing-function-docstring
+#!/usr/bin/env python3
+
+"""Module in order to scrap matchs"""
 
 import os
 
@@ -19,10 +20,11 @@ from functions_cleaning import (
     clean_players_statistics,
     clean_season_history,
     clean_xg,
-    remove_empty_dicts,
     save_match,
 )
 from functions_scraping import scraping_match
+
+from functions_databases import open_connexion, insert_match
 
 selectors = [
     {
@@ -139,6 +141,8 @@ selectors_table = [
     {"id": "Tables_Stats_Shot", "selector": "table[id*=shots_all]"},
 ]
 
+client, db = open_connexion(host="localhost", port=27017, db_name="ballmetric")
+
 folder_matchs = [
     os.path.join("data/", folder)
     for folder in os.listdir("data/")
@@ -194,9 +198,11 @@ for folder in folder_matchs:
                     clean_general_statistics(scrap_dict, scrap_dict_clean)
                     clean_events(scrap_dict, scrap_dict_clean)
                     clean_players_statistics(scrap_dict, scrap_dict_clean)
-                    remove_empty_dicts(scrap_dict_clean)
                     save_match(scrap_dict_clean, url[1], folder)
                     name_file = url[1].split("/")[-1].replace("-", "_")
-                    print(f"\t✅ {name_file}")
+                    insert_match(collection_name=scrap_dict_clean['Competition'], match=scrap_dict_clean, db=db)
+                    print(f"\t\u2705 {name_file}")
                 except Exception as e:
                     print(f"Error processing {url[1]}: {e}")
+
+client.close()

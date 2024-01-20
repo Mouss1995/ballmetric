@@ -3,6 +3,7 @@
 """Module in order to scrap matchs"""
 
 import os
+import random
 
 import pandas as pd
 
@@ -22,9 +23,14 @@ from functions_cleaning import (
     clean_xg,
     save_match,
 )
+from functions_databases import (
+    close_connection_postgresql,
+    insert_match,
+    insert_postgresql,
+    open_connection_postgresql,
+    open_connexion,
+)
 from functions_scraping import scraping_match
-
-from functions_databases import open_connexion, insert_match
 
 selectors = [
     {
@@ -141,13 +147,18 @@ selectors_table = [
     {"id": "Tables_Stats_Shot", "selector": "table[id*=shots_all]"},
 ]
 
-client, db = open_connexion(host="localhost", port=27017, db_name="ballmetric")
+client, db = open_connexion(
+    host="localhost", port=27017, db_name="ballmetric"
+)  # Connection to MongoDB
+connection = open_connection_postgresql()  # Connection to postgresql
 
 folder_matchs = [
     os.path.join("data/", folder)
     for folder in os.listdir("data/")
     if os.path.isdir(os.path.join("data/", folder))
 ]
+
+random.shuffle(folder_matchs)
 
 for folder in folder_matchs:
     csv_files = [file for file in os.listdir(folder) if file.endswith(".csv")]
@@ -200,9 +211,15 @@ for folder in folder_matchs:
                     clean_players_statistics(scrap_dict, scrap_dict_clean)
                     save_match(scrap_dict_clean, url[1], folder)
                     name_file = url[1].split("/")[-1].replace("-", "_")
-                    insert_match(collection_name=scrap_dict_clean['Competition'], match=scrap_dict_clean, db=db)
+                    insert_match(
+                        collection_name=scrap_dict_clean["Competition"],
+                        match=scrap_dict_clean,
+                        db=db,
+                    )
+                    insert_postgresql(connection, scrap_dict_clean)
                     print(f"\t\u2705 {name_file}")
                 except Exception as e:
                     print(f"Error processing {url[1]}: {e}")
 
 client.close()
+close_connection_postgresql()

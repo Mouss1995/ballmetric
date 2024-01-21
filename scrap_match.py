@@ -12,6 +12,7 @@ from functions_cleaning import (
     clean_captain,
     clean_competition,
     clean_events,
+    get_cards,
     clean_general_informations,
     clean_general_statistics,
     clean_goals,
@@ -208,6 +209,7 @@ for folder in folder_matchs:
                     clean_lineup_formation(scrap_dict, scrap_dict_clean)
                     clean_general_statistics(scrap_dict, scrap_dict_clean)
                     clean_events(scrap_dict, scrap_dict_clean)
+                    get_cards(scrap_dict_clean)
                     clean_players_statistics(scrap_dict, scrap_dict_clean)
                     save_match(scrap_dict_clean, url[1], folder)
                     name_file = url[1].split("/")[-1].replace("-", "_")

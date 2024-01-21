@@ -14,12 +14,17 @@ def open_connexion(host="localhost", port=27017, db_name="ballmetric"):
     db = client[db_name]
     return client, db
 
-
 def insert_match(collection_name, match, db):
     """Insert match to collection"""
     collection = db[collection_name]
     collection.insert_one(match)
 
+def get_list_collection(db):
+    """Get list collections from MongoDB database"""
+    collections_list = db.list_collection_names()
+    print("Collections disponibles dans la base de données ballmetric :")
+    for collection in collections_list:
+        print(collection)
 
 def get_matchs_collection(collection_name, db):
     """Get matchs to dataframe"""
@@ -47,14 +52,28 @@ def open_connection_postgresql():
     return connection
 
 
+# connection = open_connection_postgresql()
+
+def select_data_postgre(query, connection):
+    try:
+        # Utilisation de pandas pour lire les résultats de la requête directement dans un DataFrame
+        df = pd.read_sql_query(query, connection)
+
+        return df
+
+    except Exception as e:
+        print(f"Erreur: {e}")
+
+
 def insert_postgresql(connection, match):
     try:
         # Création d'un curseur
         with connection.cursor() as cursor:
             req = """
                 INSERT INTO match_info
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
             """
 
             date_formatted = match.get("Date", None)
@@ -133,6 +152,10 @@ def insert_postgresql(connection, match):
                 match.get("Saves", {}).get("Home", {}).get("Failed", None),
                 match.get("Saves", {}).get("Away", {}).get("Success", None),
                 match.get("Saves", {}).get("Away", {}).get("Failed", None),
+                match.get("Yellow Cards", {}).get("Home", None),
+                match.get("Yellow Cards", {}).get("Away", None),
+                match.get("Red Cards", {}).get("Home", None),
+                match.get("Red Cards", {}).get("Away", None),
             )
 
             cursor.execute(req, valeurs)
@@ -145,18 +168,8 @@ def insert_postgresql(connection, match):
         # Annulation des changements en cas d'erreur
         connection.rollback()
 
-# def select_data_postgre(query):
-#     try:
-#         # Connexion à la base de données
-#         connection = psycopg2.connect(**db_params)
 
-#         # Utilisation de pandas pour lire les résultats de la requête directement dans un DataFrame
-#         df = pd.read_sql_query(query, connection)
 
-#         return df
-
-#     except Exception as e:
-#         print(f"Erreur: {e}")
 
 def close_connection_postgresql(connection):
     # Fermer la connexion

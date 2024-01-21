@@ -67,5 +67,9 @@ CREATE TABLE "match_info" (
   "saves_fail_h" integer,
   "saves_success_a" integer,
   "saves_fail_a" integer,
+  "yellow_card_h" integer,
+  "yellow_card_a" integer,
+  "red_card_h" integer,
+  "red_card_a" integer,
   PRIMARY KEY ("team_h", "team_a", "date")
 );

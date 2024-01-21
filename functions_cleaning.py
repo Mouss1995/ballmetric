@@ -8,24 +8,17 @@ from datetime import datetime
 
 
 def clean_general_informations(match, cleaned_match, season):
-    # ------- Teams ------- #
     cleaned_match["Teams"] = {"Home": match["Home_Team"], "Away": match["Away_Team"]}
 
-    # -------- Season -------- #
     cleaned_match["Season"] = season
 
-    # -------- Time -------- #
     if "Time" in match:
         cleaned_match["Time"] = match["Time"].replace(" (venue time)", "")
 
-    # -------- Date -------- #
     if "Date" in match:
         cleaned_match["Date"] = match["Date"]
-
         date_object = datetime.strptime(match["Date"], "%A %B %d, %Y")
-
         cleaned_match["Date"] = date_object.strftime("%d-%m-%Y")
-
 
 def clean_competition(match, cleaned_match):
     competition = re.split(r"\s+\(", match["Competition"])
@@ -43,7 +36,6 @@ def clean_goals(match, cleaned_match):
         match["Home_Goals"] = int(match["Home_Goals"][0])
     match["Away_Goals"] = int(match["Away_Goals"])
     cleaned_match["Goals"] = {"Home": match["Home_Goals"], "Away": match["Away_Goals"]}
-
 
 def clean_penalties(match, cleaned_match):
     if "Home_Penalties" in match and "Away_Penalties" in match:
@@ -412,6 +404,44 @@ def clean_events(match, cleaned_match):
         cleaned_match["Events"] = {
             key: sorted_data[key] for _, _, key, _ in sorted_tuple_list
         }
+
+def get_cards(cleaned_match):
+    # Add key for yellow and red cards
+    if 'Events' in cleaned_match:
+        yellow_cards = {'Home':0, 'Away':0}
+        red_cards = {'Home':0, 'Away':0}
+
+        for key, value in cleaned_match['Events'].items():
+
+            if isinstance(value, list):
+                for el_lst_events in value:
+                    if el_lst_events['Event'] == 'Yellow Card':
+                        if el_lst_events['Team'] == cleaned_match['Teams']['Home']:
+                            yellow_cards['Home'] += 1
+                        else:
+                            yellow_cards['Away'] += 1
+
+                    if el_lst_events['Event'] == 'Red Card':
+                        if el_lst_events['Team'] == cleaned_match['Teams']['Home']:
+                            red_cards['Home'] += 1
+                        else:
+                            red_cards['Away'] += 1
+                
+            if isinstance(value, dict):
+                if value['Event'] == 'Yellow Card':
+                    if value['Team'] == cleaned_match['Teams']['Home']:
+                        yellow_cards['Home'] += 1
+                    else:
+                        yellow_cards['Away'] += 1
+
+                if value['Event'] == 'Red Card':
+                    if value['Team'] == cleaned_match['Teams']['Home']:
+                        red_cards['Home'] += 1
+                    else:
+                        red_cards['Away'] += 1
+
+        cleaned_match['Yellow Cards'] = yellow_cards
+        cleaned_match['Red Cards'] = red_cards
 
 
 def clean_players_statistics(match, cleaned_match):

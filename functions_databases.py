@@ -73,7 +73,7 @@ def insert_postgresql(connection, match):
                 INSERT INTO match_info
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
             """
 
             date_formatted = match.get("Date", None)
@@ -92,6 +92,7 @@ def insert_postgresql(connection, match):
                 match.get("Competition", None),
                 date_formatted,
                 match.get("Time", None),
+                match.get("Matchweek", None),
                 match.get("Round", None),
                 match.get("Manager", {}).get("Home", None),
                 match.get("Manager", {}).get("Away", None),

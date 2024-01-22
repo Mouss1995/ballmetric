@@ -7,6 +7,7 @@ CREATE TABLE "match_info" (
   "competition" varchar NOT NULL,
   "date" date NOT NULL,
   "time" time,
+  "matchweek" integer,
   "round" varchar,
   "manager_h" varchar,
   "manager_a" varchar,

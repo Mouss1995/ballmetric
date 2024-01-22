@@ -421,6 +421,14 @@ def get_cards(cleaned_match):
                         else:
                             yellow_cards['Away'] += 1
 
+                    if el_lst_events['Event'] == 'Second Yellow Card':
+                        if el_lst_events['Team'] == cleaned_match['Teams']['Home']:
+                            yellow_cards['Home'] += 1
+                            red_cards['Home'] += 1
+                        else:
+                            yellow_cards['Away'] += 1
+                            red_cards['Away'] += 1
+
                     if el_lst_events['Event'] == 'Red Card':
                         if el_lst_events['Team'] == cleaned_match['Teams']['Home']:
                             red_cards['Home'] += 1
@@ -432,6 +440,14 @@ def get_cards(cleaned_match):
                     if value['Team'] == cleaned_match['Teams']['Home']:
                         yellow_cards['Home'] += 1
                     else:
+                        yellow_cards['Away'] += 1
+
+                if value['Event'] == 'Second Yellow Card':
+                    if value['Team'] == cleaned_match['Teams']['Home']:
+                        red_cards['Home'] += 1
+                        yellow_cards['Home'] += 1
+                    else:
+                        red_cards['Away'] += 1
                         yellow_cards['Away'] += 1
 
                 if value['Event'] == 'Red Card':

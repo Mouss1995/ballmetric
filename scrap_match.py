@@ -1,15 +1,18 @@
-# pylint: disable=missing-module-docstring
-# pylint: disable=missing-function-docstring
+#!/usr/bin/env python3
+
+"""Module in order to scrap matchs"""
 
 import os
+import random
 
 import pandas as pd
 
-from functions_scraping import (
+from functions_cleaning import (
     clean_attendance_stade_avenue,
     clean_captain,
     clean_competition,
     clean_events,
+    get_cards,
     clean_general_informations,
     clean_general_statistics,
     clean_goals,
@@ -19,10 +22,16 @@ from functions_scraping import (
     clean_players_statistics,
     clean_season_history,
     clean_xg,
-    remove_empty_dicts,
     save_match,
-    scrap_match,
 )
+from functions_databases import (
+    close_connection_postgresql,
+    insert_match,
+    insert_postgresql,
+    open_connection_postgresql,
+    open_connexion,
+)
+from functions_scraping import scraping_match
 
 selectors = [
     {
@@ -139,11 +148,18 @@ selectors_table = [
     {"id": "Tables_Stats_Shot", "selector": "table[id*=shots_all]"},
 ]
 
+client, db = open_connexion(
+    host="localhost", port=27017, db_name="ballmetric"
+)  # Connection to MongoDB
+connection = open_connection_postgresql()  # Connection to postgresql
+
 folder_matchs = [
     os.path.join("data/", folder)
     for folder in os.listdir("data/")
     if os.path.isdir(os.path.join("data/", folder))
 ]
+
+random.shuffle(folder_matchs)
 
 for folder in folder_matchs:
     csv_files = [file for file in os.listdir(folder) if file.endswith(".csv")]
@@ -180,7 +196,7 @@ for folder in folder_matchs:
             for url in match_to_scrap:
                 try:
                     scrap_dict_clean = {}
-                    scrap_dict = scrap_match(url[1], selectors, selectors_table)
+                    scrap_dict = scraping_match(url[1], selectors, selectors_table)
                     clean_general_informations(scrap_dict, scrap_dict_clean, url[0])
                     clean_competition(scrap_dict, scrap_dict_clean)
                     clean_goals(scrap_dict, scrap_dict_clean)
@@ -193,10 +209,19 @@ for folder in folder_matchs:
                     clean_lineup_formation(scrap_dict, scrap_dict_clean)
                     clean_general_statistics(scrap_dict, scrap_dict_clean)
                     clean_events(scrap_dict, scrap_dict_clean)
+                    get_cards(scrap_dict_clean)
                     clean_players_statistics(scrap_dict, scrap_dict_clean)
-                    remove_empty_dicts(scrap_dict_clean)
                     save_match(scrap_dict_clean, url[1], folder)
                     name_file = url[1].split("/")[-1].replace("-", "_")
-                    print(f"\t✅ {name_file} ✅")
+                    insert_match(
+                        collection_name=scrap_dict_clean["Competition"],
+                        match=scrap_dict_clean,
+                        db=db,
+                    )
+                    insert_postgresql(connection, scrap_dict_clean)
+                    print(f"\t\u2705 {name_file}")
                 except Exception as e:
-                    print(f"Error processing {url}: {e}")
+                    print(f"Error processing {url[1]}: {e}")
+
+client.close()
+close_connection_postgresql()

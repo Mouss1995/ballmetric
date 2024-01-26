@@ -144,7 +144,10 @@ def clean_lineup_formation(match, cleaned_match):
         for el in lst_lineup:
             lineup = match[el].split("\n")
             lineup = [el for el in lineup if el != ""]
-            formation = re.split(r"\s+\(", lineup[0])[1].replace(")", "")
+            try:
+                formation = re.split(r"\s+\(", lineup[0])[1].replace(")", "")
+            except IndexError:
+                formation = None
             starting_list = re.findall(r"(\d+)([^\d]+)", lineup[1])
             substitute_list = re.findall(r"(\d+)([^\d]+)", lineup[3])
             starting = {}

@@ -4,20 +4,21 @@ from datetime import datetime
 
 import pandas as pd
 import psycopg2
-from psycopg2 import sql
 from pymongo import MongoClient
 
 
 def open_connexion(host="localhost", port=27017, db_name="ballmetric"):
-    """Create connexion"""
+    """Create connexion MongodDB"""
     client = MongoClient(host, port)
     db = client[db_name]
     return client, db
 
+
 def insert_match(collection_name, match, db):
-    """Insert match to collection"""
+    """Insert match to collection MongodDB"""
     collection = db[collection_name]
     collection.insert_one(match)
+
 
 def get_list_collection(db):
     """Get list collections from MongoDB database"""
@@ -26,8 +27,9 @@ def get_list_collection(db):
     for collection in collections_list:
         print(collection)
 
+
 def get_matchs_collection(collection_name, db):
-    """Get matchs to dataframe"""
+    """Get matchs from MongodDB to dataframe"""
     collection = db[collection_name]
     cursor = collection.find()
     documents_list = list(cursor)
@@ -37,6 +39,7 @@ def get_matchs_collection(collection_name, db):
 
 
 def open_connection_postgresql():
+    """Open connexion Postgresql"""
     # Paramètres de connexion à la base de données
     db_params = {
         "dbname": "ballmetric",
@@ -54,18 +57,9 @@ def open_connection_postgresql():
 
 # connection = open_connection_postgresql()
 
-def select_data_postgre(query, connection):
-    try:
-        # Utilisation de pandas pour lire les résultats de la requête directement dans un DataFrame
-        df = pd.read_sql_query(query, connection)
-
-        return df
-
-    except Exception as e:
-        print(f"Erreur: {e}")
-
 
 def insert_postgresql(connection, match):
+    """Insert data in postgresql database"""
     try:
         # Création d'un curseur
         with connection.cursor() as cursor:
@@ -73,7 +67,7 @@ def insert_postgresql(connection, match):
                 INSERT INTO match_info
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
                 %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
             """
 
             date_formatted = match.get("Date", None)
@@ -157,6 +151,7 @@ def insert_postgresql(connection, match):
                 match.get("Yellow Cards", {}).get("Away", None),
                 match.get("Red Cards", {}).get("Home", None),
                 match.get("Red Cards", {}).get("Away", None),
+                match.get("Notes", None),
             )
 
             cursor.execute(req, valeurs)
@@ -170,9 +165,8 @@ def insert_postgresql(connection, match):
         connection.rollback()
 
 
-
-
 def close_connection_postgresql(connection):
+    """Close postgresql connexion"""
     # Fermer la connexion
     if connection:
         connection.close()

@@ -56,6 +56,7 @@ selectors = [
         "id": "Away_Goals",
         "selector": ".scorebox div:nth-of-type(2) .scores div.score",
     },
+    {"id": "Notes", "selector": ".scorebox_meta div:nth-of-type(4)"},
     {"id": "Home_xG", "selector": "div:nth-of-type(1) div.score_xg"},
     {
         "id": "Away_xG",
@@ -186,7 +187,7 @@ for folder in folder_matchs:
                     match_to_scrap.append([row["Season"], row["Link"]])
 
             print(
-                "\t#--------",
+                "\n\t#--------",
                 folder.replace("data/", "").replace("_", " "),
                 ":",
                 len(match_to_scrap),
@@ -197,6 +198,7 @@ for folder in folder_matchs:
                 try:
                     scrap_dict_clean = {}
                     scrap_dict = scraping_match(url[1], selectors, selectors_table)
+                    #time.sleep(3)
                     clean_general_informations(scrap_dict, scrap_dict_clean, url[0])
                     clean_competition(scrap_dict, scrap_dict_clean)
                     clean_goals(scrap_dict, scrap_dict_clean)
@@ -221,7 +223,7 @@ for folder in folder_matchs:
                     insert_postgresql(connection, scrap_dict_clean)
                     print(f"\t\u2705 {name_file}")
                 except Exception as e:
-                    print(f"Error processing {url[1]}: {e}")
+                    print(f"\t\u274C Error processing {url[1]}: {e}")
 
 client.close()
 close_connection_postgresql()

@@ -72,5 +72,6 @@ CREATE TABLE "match_info" (
   "yellow_card_a" integer,
   "red_card_h" integer,
   "red_card_a" integer,
+  "notes" varchar,
   PRIMARY KEY ("team_h", "team_a", "date")
 );

@@ -33,9 +33,22 @@ def clean_competition(match, cleaned_match):
 
 def clean_goals(match, cleaned_match):
     if len(match["Home_Goals"]) > 1:
-        match["Home_Goals"] = int(match["Home_Goals"][0])
-    match["Away_Goals"] = int(match["Away_Goals"])
+        match["Home_Goals"] = match["Home_Goals"][0]
+        if "*" in match["Home_Goals"]:
+            match["Home_Goals"] = int(match["Home_Goals"][0].replace('*', ''))
+        else:
+            match["Home_Goals"] = int(match["Home_Goals"][0])
+
+    match["Away_Goals"] = match["Away_Goals"]
+    if "*" in match["Away_Goals"]:
+        match["Away_Goals"] = int(match["Away_Goals"][0].replace('*', ''))
+    else:
+        match["Away_Goals"] = int(match["Away_Goals"][0])
+
     cleaned_match["Goals"] = {"Home": match["Home_Goals"], "Away": match["Away_Goals"]}
+
+    if match['Notes'] and not match['Notes'].isspace():
+        cleaned_match["Notes"] = match['Notes'].replace("*", "")
 
 def clean_penalties(match, cleaned_match):
     if "Home_Penalties" in match and "Away_Penalties" in match:
@@ -414,7 +427,7 @@ def get_cards(cleaned_match):
         yellow_cards = {'Home':0, 'Away':0}
         red_cards = {'Home':0, 'Away':0}
 
-        for key, value in cleaned_match['Events'].items():
+        for _, value in cleaned_match['Events'].items():
 
             if isinstance(value, list):
                 for el_lst_events in value:
@@ -437,7 +450,7 @@ def get_cards(cleaned_match):
                             red_cards['Home'] += 1
                         else:
                             red_cards['Away'] += 1
-                
+
             if isinstance(value, dict):
                 if value['Event'] == 'Yellow Card':
                     if value['Team'] == cleaned_match['Teams']['Home']:

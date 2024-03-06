@@ -1,161 +1,128 @@
-# pylint: disable=missing-module-docstring
-# pylint: disable=missing-function-docstring
-
-import json
-import math
 import re
 from datetime import datetime
 
 
-def clean_general_informations(match, cleaned_match, season):
-    cleaned_match["Teams"] = {"Home": match["Home_Team"], "Away": match["Away_Team"]}
-
-    cleaned_match["Season"] = season
-
-    if "Time" in match:
-        cleaned_match["Time"] = match["Time"].replace(" (venue time)", "")
-
-    if "Date" in match:
-        cleaned_match["Date"] = match["Date"]
-        date_object = datetime.strptime(match["Date"], "%A %B %d, %Y")
-        cleaned_match["Date"] = date_object.strftime("%d-%m-%Y")
-
-def clean_competition(match, cleaned_match):
-    competition = re.split(r"\s+\(", match["Competition"])
-    competition = [partie.strip("()") for partie in competition]
-    cleaned_match["Competition"] = competition[0]
-    match["Matchweek"] = competition[1]
-    if "Matchweek" in match["Matchweek"]:
-        cleaned_match["Matchweek"] = int(match["Matchweek"].replace("Matchweek ", ""))
-    else:
-        cleaned_match["Round"] = match["Matchweek"].split(")")[0]
+def clean_general_informations(match: dict, season: str) -> None:
+    match["season"] = season
+    if "time" in match:
+        match["time"] = match["time"].replace(" (venue time)", "")
+    if "date" in match:
+        date_object = datetime.strptime(match["date"], "%A %B %d, %Y")
+        match["date"] = date_object.strftime("%d-%m-%Y")
 
 
-def clean_goals(match, cleaned_match):
-    if len(match["Home_Goals"]) > 1:
-        match["Home_Goals"] = match["Home_Goals"][0]
-        if "*" in match["Home_Goals"]:
-            match["Home_Goals"] = int(match["Home_Goals"][0].replace('*', ''))
-        else:
-            match["Home_Goals"] = int(match["Home_Goals"][0])
-
-    match["Away_Goals"] = match["Away_Goals"]
-    if "*" in match["Away_Goals"]:
-        match["Away_Goals"] = int(match["Away_Goals"][0].replace('*', ''))
-    else:
-        match["Away_Goals"] = int(match["Away_Goals"][0])
-
-    cleaned_match["Goals"] = {"Home": match["Home_Goals"], "Away": match["Away_Goals"]}
-
-    if match['Notes'] and not match['Notes'].isspace():
-        cleaned_match["Notes"] = match['Notes'].replace("*", "")
-
-def clean_penalties(match, cleaned_match):
-    if "Home_Penalties" in match and "Away_Penalties" in match:
-        if len(match["Home_Penalties"]) > 1:
-            match["Home_Penalties"] = int(match["Home_Penalties"][0])
-        match["Away_Penalties"] = int(match["Away_Penalties"])
-        cleaned_match["Penalties"] = {
-            "Home": match["Home_Penalties"],
-            "Away": match["Away_Penalties"],
-        }
-
-
-def clean_xg(match, cleaned_match):
-    if "Home_xG" in match and "Away_xG" in match:
-        if len(match["Home_xG"]) > 1:
-            match["Home_xG"] = float(match["Home_xG"][0].replace(",", "."))
-        match["Away_xG"] = float((match["Away_xG"]).replace(",", "."))
-        cleaned_match["xG"] = {"Home": match["Home_xG"], "Away": match["Away_xG"]}
-
-
-def clean_manager(match, cleaned_match):
-    lst = ["Home_Manager", "Away_Manager"]
-    dict_manager = {}
-    for el_lst in lst:
-        if el_lst in match:
-            match[el_lst] = match[el_lst].split("\n")
-            for el in match[el_lst]:
-                if "Manager" in el:
-                    el = el.replace("\xa0", " ").replace("Manager: ", "")
-                    if el_lst == "Home_Manager":
-                        dict_manager["Home"] = el
-                    else:
-                        dict_manager["Away"] = el
-    if dict_manager:
-        cleaned_match["Manager"] = dict_manager
-
-
-def clean_captain(match, cleaned_match):
-    lst = ["Home_Captain", "Away_Captain"]
-    dict_captain = {}
-    for el_lst in lst:
-        if el_lst in match:
-            match[el_lst] = match[el_lst].split("\n")
-            for el in match[el_lst]:
-                if "Captain" in el:
-                    el = el.replace("\xa0", " ").replace("Captain: ", "")
-                    if el_lst == "Home_Captain":
-                        dict_captain["Home"] = el
-                    else:
-                        dict_captain["Away"] = el
-    if dict_captain:
-        cleaned_match["Captain"] = dict_captain
-
-
-def clean_season_history(match, cleaned_match):
-    for team_history in ["Home_Season_History", "Away_Season_History"]:
-        if team_history in match:
-            if isinstance(match[team_history], list):
-                match.pop(team_history)
-            elif "Match" in match[team_history]:
-                match.pop(team_history)
+def clean_competition(match: dict) -> None:
+    if match["competition"]:
+        competition = match["competition"].split(",")[0]
+        match["competition"] = competition.split("(")[0].strip()
+        matchweek_round = re.findall(r"\((.*?)\)", competition)
+        if matchweek_round:
+            if "Matchweek" in matchweek_round[0]:
+                match["matchweek"] = int(matchweek_round[0].replace("Matchweek ", ""))
             else:
-                dict_history = {}
-                match[team_history] = match[team_history].split("-")
-                dict_history = {
-                    "Victory": int(match[team_history][0]),
-                    "Draw": int(match[team_history][1]),
-                    "Defeat": int(match[team_history][2]),
-                }
-                match[team_history] = dict_history
-                if "Season_History" not in cleaned_match:
-                    cleaned_match["Season_History"] = {}
-                if team_history == "Home_Season_History":
-                    cleaned_match["Season_History"]["Home"] = match[team_history]
+                match["round"] = matchweek_round[0]
+
+
+def clean_goals(match: dict) -> None:
+    if "--" in match["goals"]:
+        match["home_goals"] = None
+        match["away_goals"] = None
+    else:
+        match["home_goals"] = int(match["goals"][0].replace("*", ""))
+        match["away_goals"] = int(match["goals"][1].replace("*", ""))
+    match.pop("goals", None)
+
+
+def clean_notes(match):
+    match["notes"] = match["notes"].replace("\xa0", "")
+    if "*" in match["notes"]:
+        match["notes"] = match["notes"].replace("*", "")
+    if match["notes"] == "":
+        match.pop("notes", None)
+
+
+def clean_penalties(match: dict) -> None:
+    if "penalties" in match:
+        match["home_penalties"] = int(match["penalties"][0])
+        match["away_penalties"] = int(match["penalties"][1])
+        match.pop("penalties", None)
+
+
+def clean_xg(match: dict) -> None:
+    if "xg" in match:
+        match["home_xg"] = float(match["xg"][0].replace(",", "."))
+        match["away_xg"] = float(match["xg"][1].replace(",", "."))
+        match.pop("xg", None)
+
+
+def clean_manager_captain(match: dict) -> None:
+    for type_team in ["home", "away"]:
+        if "".join([type_team, "_manager_captain"]) in match:
+            home_captain_manager = match[
+                "".join([type_team, "_manager_captain"])
+            ].split("\n")
+            for el_list in home_captain_manager:
+                if "Manager" in el_list:
+                    match["".join([type_team, "_manager"])] = el_list.replace(
+                        "Manager: ", ""
+                    ).replace("\xa0", " ")
+                if "Captain" in el_list:
+                    match["".join([type_team, "_captain"])] = el_list.replace(
+                        "Captain: ", ""
+                    ).replace("\xa0", " ")
+            match.pop("".join([type_team, "_manager_captain"]), None)
+
+
+def clean_season_history(match: dict) -> None:
+    for type_team in ["home_season_history", "away_season_history"]:
+        if type_team in match:
+            if not isinstance(match[type_team], list):
+                pattern_history = r"\b\d{1,2}-\d{1,2}-\d{1,2}\b"
+                result = re.search(pattern_history, match[type_team])
+                if result:
+                    history_season = match[type_team].split("-")
+                    match[type_team] = match[type_team].split("-")
+                    match[type_team] = {
+                        "victory": int(history_season[0]),
+                        "draw": int(history_season[1]),
+                        "defeat": int(history_season[2]),
+                    }
                 else:
-                    cleaned_match["Season_History"]["Away"] = match[team_history]
+                    match.pop(type_team, None)
+            else:
+                match.pop(type_team, None)
 
 
-def clean_attendance_stade_avenue(match, cleaned_match):
-    if match["Attendance-Venue-Officials"]:
-        for el in match["Attendance-Venue-Officials"]:
+def clean_attendance_stade_avenue(match: dict) -> None:
+    if match["attendance_venue_officials"]:
+        for el in match["attendance_venue_officials"]:
             if "Attendance" in el:
-                cleaned_match["Attendance"] = int(
+                match["attendance"] = int(
                     el.replace("Attendance: ", "").replace(",", "")
                 )
             if "Venue" in el:
-                cleaned_match["Venue"] = el.replace("Venue: ", "")
+                match["venue"] = el.replace("Venue: ", "")
             if "Officials" in el:
                 officials = el.replace("Officials: ", "")
                 if officials != "":
                     officials = officials.split("\xa0· ")
-                    match["Officials"] = [
+                    match["officials"] = [
                         element.replace("\xa0", " ") for element in officials
                     ]
                     dict_arbitres = {}
-                    for official in match["Officials"]:
+                    for official in match["officials"]:
                         official = official.split(" (")
-                        official[1] = official[1].replace(")", "")
+                        official[1] = official[1].replace(")", "").lower()
                         dict_arbitres[official[1]] = official[0]
-                    cleaned_match["Officials"] = dict_arbitres
+                    match["officials"] = dict_arbitres
+        match.pop("attendance_venue_officials", None)
 
 
-def clean_lineup_formation(match, cleaned_match):
-    if "Home_Lineup" in match and "Away_Lineup" in match:
-        lst_lineup = ["Home_Lineup", "Away_Lineup"]
-        for el in lst_lineup:
-            lineup = match[el].split("\n")
+def clean_lineup_formation(match: dict) -> None:
+    for type_team in ["home", "away"]:
+        if "".join([type_team, "_lineup"]) in match:
+            el_lineup = "".join([type_team, "_lineup"])
+            lineup = match[el_lineup].split("\n")
             lineup = [el for el in lineup if el != ""]
             try:
                 formation = re.split(r"\s+\(", lineup[0])[1].replace(")", "")
@@ -170,403 +137,71 @@ def clean_lineup_formation(match, cleaned_match):
             for num, name in substitute_list:
                 substitute[num] = name
             lineup = {
-                "Formation": formation,
-                "Starting": starting,
-                "Substitute": substitute,
+                "formation": formation,
+                "starting": starting,
+                "substitute": substitute,
             }
-            match[el] = lineup
-        cleaned_match["Lineup"] = {
-            "Home": match["Home_Lineup"],
-            "Away": match["Away_Lineup"],
-        }
+            match[el_lineup] = lineup
 
 
-def clean_general_statistics(match, cleaned_match):
-    # -------- General Statistics -------- #
-    if "General_Statistics" in match:
-        sublists = []
-        for i in range(0, len(match["General_Statistics"]), 3):
-            sublist = match["General_Statistics"][i : i + 3]
-            sublists.append(sublist)
-        for lst in sublists:
-            cleaned_match[lst[1]] = {"Home": int(lst[0]), "Away": int(lst[2])}
+def clean_general_statistics(match: dict) -> None:
 
-    # -------- General Statistics 2 -------- #
-    if "General_Statistics_2" in match:
+    if "general_statistics" in match:
+        stats = match["general_statistics"]
+        cleaned_stats = {}
+        for i in range(0, len(stats), 3):
+            home_stat = int(stats[i])
+            label = stats[i + 1].lower().replace(" ", "_")
+            away_stat = int(stats[i + 2])
+            cleaned_stats[label] = {"home": home_stat, "away": away_stat}
+        match["general_statistics"] = cleaned_stats
+
+
+def clean_general_statistics_2(match: dict) -> None:
+
+    if "general_statistics_2" in match:
         sublists = []
         general_stats_2 = {}
-        for i in range(0, len(match["General_Statistics_2"]), 3):
-            sublist = match["General_Statistics_2"][i : i + 3]
+        for i in range(0, len(match["general_statistics_2"]), 3):
+            sublist = match["general_statistics_2"][i : i + 3]
             if "Cards" not in sublist:
                 sublists.append(sublist)
         for lst in sublists:
-            general_stats_2[lst[0]] = {"Home": lst[1], "Away": lst[2]}
+            lst[0] = lst[0].replace(" ", "_").lower()
+            general_stats_2[lst[0]] = {"home": lst[1], "away": lst[2]}
         for key, value in general_stats_2.items():
-            teams = ["Home", "Away"]
+            key = key.replace(" ", "_").lower()
+            teams = ["home", "away"]
             for team in teams:
                 if "\xa0" in value[team]:
                     new_value = value[team].replace("\xa0", " ")
                     new_value = new_value.replace("%", "")
                     new_value = new_value.split(" — ")
                     general_stats_2[key][team] = {
-                        "Success": "",
-                        "Failed": "",
-                        "Percentage": "",
+                        "success": "",
+                        "failed": "",
+                        "percentage": "",
                     }
                     for el in new_value:
                         team_stats = general_stats_2[key][team]
                         if "of" in el:
                             el = el.split(" of ")
                             if el[0] == "":
-                                team_stats["Success"] = 0
+                                team_stats["success"] = 0
                             else:
-                                team_stats["Success"] = int(el[0])
+                                team_stats["success"] = int(el[0])
                             if el[1] == "":
-                                team_stats["Failed"] = 0
+                                team_stats["failed"] = 0
                             else:
-                                team_stats["Failed"] = int(el[1])
+                                team_stats["failed"] = int(el[1])
                         else:
                             if el == "":
-                                team_stats["Percentage"] = 0
+                                team_stats["percentage"] = 0
                             else:
-                                team_stats["Percentage"] = int(el)
+                                team_stats["percentage"] = int(el)
                 else:
                     new_value = int(value[team].replace("%", ""))
                     general_stats_2[key][team] = new_value
-        cleaned_match.update(general_stats_2)
-
-
-def clean_events(match, cleaned_match):
-    if "Home_Events" in match and "Away_Events" in match:
-        cleaned_match["Events"] = {}
-        dict_events = {}
-        for events in ["Home_Events", "Away_Events"]:
-            list_events = match[events]
-            list_events = [
-                event.replace("\n", "").replace("\t", "").replace("\xa0", "")
-                for event in list_events
-            ]
-            sublists = [list_events[i : i + 2] for i in range(0, len(list_events), 2)]
-            for el in sublists:
-                if "’" in el[0]:
-                    temp_events = {}
-                    type_team = (
-                        cleaned_match["Teams"]["Home"]
-                        if events == "Home_Events"
-                        else cleaned_match["Teams"]["Away"]
-                    )
-                    minute = el[0].split("’")[0]
-                    score = el[0].split("’")[1]
-
-                    if "Own Goal" in el[1]:
-                        player = el[1].split("Own Goal")[0]
-                        temp_events = {
-                            "Team": type_team,
-                            "Event": "Goal",
-                            "Type": "Own Goal",
-                            "Player": player,
-                            "Score": score,
-                        }
-                        if minute in dict_events:
-                            if not isinstance(dict_events[minute], list):
-                                dict_events[minute] = [dict_events[minute]]
-                            dict_events[minute].append(temp_events)
-                        else:
-                            dict_events[minute] = temp_events
-                        continue
-
-                    if "Penalty saved" in el[1]:
-                        player = el[1].split("Penalty saved by ")[0]
-                        player_saved_by = (
-                            el[1].split("Penalty saved by ")[1].replace("—", "")
-                        )
-                        temp_events = {
-                            "Team": type_team,
-                            "Event": "Penalty Saved",
-                            "Player": player,
-                            "Saved By": player_saved_by,
-                            "Score": score,
-                        }
-                        if minute in dict_events:
-                            if not isinstance(dict_events[minute], list):
-                                dict_events[minute] = [dict_events[minute]]
-                            dict_events[minute].append(temp_events)
-                        else:
-                            dict_events[minute] = temp_events
-                        continue
-
-                    if "Penalty Miss" in el[1]:
-                        player = (
-                            el[1]
-                            .split("—")[0]
-                            .replace("Penalty Miss", "")
-                            .split("—")[0]
-                        )
-                        temp_events = {
-                            "Team": type_team,
-                            "Event": "Penalty Miss",
-                            "Player": player,
-                            "Score": score,
-                        }
-                        if minute in dict_events:
-                            if not isinstance(dict_events[minute], list):
-                                dict_events[minute] = [dict_events[minute]]
-                            dict_events[minute].append(temp_events)
-                        else:
-                            dict_events[minute] = temp_events
-                        continue
-
-                    if "Penalty Kick" in el[1]:
-                        scorer = el[1].split("—")[0].replace("Penalty Kick", "")
-                        temp_events = {
-                            "Team": type_team,
-                            "Event": "Goal",
-                            "Type": "Penalty Kick",
-                            "Score": score,
-                            "Scorer": scorer,
-                        }
-                        if minute in dict_events:
-                            if not isinstance(dict_events[minute], list):
-                                dict_events[minute] = [dict_events[minute]]
-                            dict_events[minute].append(temp_events)
-                        else:
-                            dict_events[minute] = temp_events
-                        continue
-
-                    if "Goal" in el[1]:
-                        scorer = el[1].split("—")[0]
-                        if "Assist:" in scorer:
-                            assister = scorer.split("Assist:")[1]
-                            scorer = scorer.split("Assist:")[0]
-                            temp_events = {
-                                "Team": type_team,
-                                "Event": "Goal",
-                                "Score": score,
-                                "Scorer": scorer,
-                                "Assister": assister,
-                            }
-                            if minute in dict_events:
-                                if not isinstance(dict_events[minute], list):
-                                    dict_events[minute] = [dict_events[minute]]
-                                dict_events[minute].append(temp_events)
-                            else:
-                                dict_events[minute] = temp_events
-                            continue
-                        else:
-                            temp_events = {
-                                "Team": type_team,
-                                "Event": "Goal",
-                                "Score": score,
-                                "Scorer": scorer,
-                            }
-                            if minute in dict_events:
-                                if not isinstance(dict_events[minute], list):
-                                    dict_events[minute] = [dict_events[minute]]
-                                dict_events[minute].append(temp_events)
-                            else:
-                                dict_events[minute] = temp_events
-                            continue
-
-                    if "for " in el[1] and "Substitute" in el[1]:
-                        incoming = el[1].split("for ")[0]
-                        outcoming = el[1].split("for ")[1].split("—")[0]
-                        temp_events = {
-                            "Team": type_team,
-                            "Event": "Substitute",
-                            "Score": score,
-                            "Incoming": incoming,
-                            "Outcoming": outcoming,
-                        }
-                        if minute in dict_events:
-                            if not isinstance(dict_events[minute], list):
-                                dict_events[minute] = [dict_events[minute]]
-                            dict_events[minute].append(temp_events)
-                        else:
-                            dict_events[minute] = temp_events
-                        continue
-
-                    if "Yellow Card" in el[1] or "Red Card" in el[1]:
-                        player = el[1].split("—")[0]
-                        type_card = el[1].split("—")[1]
-                        temp_events = {
-                            "Team": type_team,
-                            "Event": type_card,
-                            "Score": score,
-                            "Player": player,
-                        }
-                        if minute in dict_events:
-                            if not isinstance(dict_events[minute], list):
-                                dict_events[minute] = [dict_events[minute]]
-                            dict_events[minute].append(temp_events)
-                        else:
-                            dict_events[minute] = temp_events
-                        continue
-
-            # Update events final dict
-            cleaned_match["Events"].update(dict_events)
-
-        # Sorting events by minute and conserved the type of key (string)
-        tuple_list = [
-            (
-                int(key.split("+")[0]),
-                int(key.split("+")[1]) if "+" in key else 0,
-                key,
-                value,
-            )
-            for key, value in cleaned_match["Events"].items()
-        ]
-        sorted_tuple_list = sorted(tuple_list, key=lambda x: (x[0], x[1]))
-        sorted_data = {key: value for _, _, key, value in sorted_tuple_list}
-        cleaned_match["Events"] = {
-            key: sorted_data[key] for _, _, key, _ in sorted_tuple_list
-        }
-
-def get_cards(cleaned_match):
-    # Add key for yellow and red cards
-    if 'Events' in cleaned_match:
-        yellow_cards = {'Home':0, 'Away':0}
-        red_cards = {'Home':0, 'Away':0}
-
-        for _, value in cleaned_match['Events'].items():
-
-            if isinstance(value, list):
-                for el_lst_events in value:
-                    if el_lst_events['Event'] == 'Yellow Card':
-                        if el_lst_events['Team'] == cleaned_match['Teams']['Home']:
-                            yellow_cards['Home'] += 1
-                        else:
-                            yellow_cards['Away'] += 1
-
-                    if el_lst_events['Event'] == 'Second Yellow Card':
-                        if el_lst_events['Team'] == cleaned_match['Teams']['Home']:
-                            yellow_cards['Home'] += 1
-                            red_cards['Home'] += 1
-                        else:
-                            yellow_cards['Away'] += 1
-                            red_cards['Away'] += 1
-
-                    if el_lst_events['Event'] == 'Red Card':
-                        if el_lst_events['Team'] == cleaned_match['Teams']['Home']:
-                            red_cards['Home'] += 1
-                        else:
-                            red_cards['Away'] += 1
-
-            if isinstance(value, dict):
-                if value['Event'] == 'Yellow Card':
-                    if value['Team'] == cleaned_match['Teams']['Home']:
-                        yellow_cards['Home'] += 1
-                    else:
-                        yellow_cards['Away'] += 1
-
-                if value['Event'] == 'Second Yellow Card':
-                    if value['Team'] == cleaned_match['Teams']['Home']:
-                        red_cards['Home'] += 1
-                        yellow_cards['Home'] += 1
-                    else:
-                        red_cards['Away'] += 1
-                        yellow_cards['Away'] += 1
-
-                if value['Event'] == 'Red Card':
-                    if value['Team'] == cleaned_match['Teams']['Home']:
-                        red_cards['Home'] += 1
-                    else:
-                        red_cards['Away'] += 1
-
-        cleaned_match['Yellow Cards'] = yellow_cards
-        cleaned_match['Red Cards'] = red_cards
-
-
-def clean_players_statistics(match, cleaned_match):
-    # -------- Players statistics -------- #
-    players_stats = ["home_players_stats", "away_players_stats"]
-    cleaned_match["Players Statistics"] = {}
-    for stats in players_stats:
-        if stats in match:
-            if stats == "home_players_stats":
-                cleaned_match["Players Statistics"]["Home"] = match[
-                    "home_players_stats"
-                ]
-            else:
-                cleaned_match["Players Statistics"]["Away"] = match[
-                    "away_players_stats"
-                ]
-
-    # -------- Goalkeeper statistics -------- #
-    goals_stats = ["home_goalkeeper_stats", "away_goalkeeper_stats"]
-    cleaned_match["Goalkeepers Statistics"] = {}
-    for stats in goals_stats:
-        if stats in match:
-            if stats == "home_goalkeeper_stats":
-                cleaned_match["Goalkeepers Statistics"]["Home"] = match[
-                    "home_goalkeeper_stats"
-                ]
-            else:
-                cleaned_match["Goalkeepers Statistics"]["Away"] = match[
-                    "away_goalkeeper_stats"
-                ]
-
-    # Remove NaN values from Players and goalkeepers Statistics and get key total players
-    elements_to_remove = []
-    fields = ["Players Statistics", "Goalkeepers Statistics"]
-    fields_home_away = ["Home", "Away"]
-
-    for field in fields:
-        if field in cleaned_match:
-            for field_home_away in fields_home_away:
-                if field_home_away in cleaned_match[field]:
-                    for subfield in cleaned_match[field][field_home_away]:
-                        if " Players" in subfield:
-                            elements_to_remove.append(
-                                (field, field_home_away, subfield)
-                            )
-                        else:
-                            cleaned_match[field][field_home_away][subfield] = {
-                                key: value
-                                for key, value in cleaned_match[field][field_home_away][
-                                    subfield
-                                ].items()
-                                if not (
-                                    isinstance(value, (float, int))
-                                    and math.isnan(value)
-                                )
-                            }
-
-    # Remove total players
-    for element in elements_to_remove:
-        field, field_home_away, subfield = element
-        cleaned_match[field][field_home_away].pop(subfield)
-
-
-def remove_empty_dicts(cleaned_match):
-    if isinstance(cleaned_match, dict):
-        # Check if 'Home' and 'Away' keys have empty dictionaries, and remove them if empty.
-        if (
-            "Home" in cleaned_match
-            and "Away" in cleaned_match
-            and not cleaned_match["Home"]
-            and not cleaned_match["Away"]
-        ):
-            del cleaned_match["Home"]
-            del cleaned_match["Away"]
-
-        # Recursively process sub-dictionaries.
-        for key, value in list(cleaned_match.items()):
-            if isinstance(value, dict):
-                remove_empty_dicts(value)
-                if (
-                    not value
-                ):  # If the value is an empty dictionary after recursion, remove the key.
-                    del cleaned_match[key]
-            elif isinstance(value, list):
-                for item in value:
-                    remove_empty_dicts(item)
-                    if not item:
-                        value.remove(item)
-    return cleaned_match
-
-
-def save_match(match_dict, url_match, folder_match):
-    name_json = url_match.split("/")
-    name_json = name_json[len(name_json) - 1].replace("-", "_")
-    with open(folder_match + "/matchs/" + name_json + ".json", "w") as f:
-        json.dump(match_dict, f)
+        if "general_statistics" in match:
+            match["general_statistics"].update(general_stats_2)
+        match.pop("general_statistics_2", None)

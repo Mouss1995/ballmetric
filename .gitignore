@@ -5,3 +5,6 @@
 /venv
 /yaml
 test*
+/sql
+/__pycache__
+/logs

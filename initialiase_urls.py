@@ -94,7 +94,7 @@ def get_matchs_urls(links: list, row: pd.Series) -> None:
                 break
 
             except requests.exceptions.Timeout:
-                print(f"Timeout occurred {link}")
+                print(f"\tTimeout occurred {link}")
 
     df_final = df_final.drop_duplicates(subset=["Link"], keep="last")
     df_final.reset_index(drop=True, inplace=True)
@@ -106,10 +106,8 @@ def get_matchs_urls(links: list, row: pd.Series) -> None:
 
 
 if __name__ == "__main__":
-
     df_competitions = pd.read_csv("competitions/init_competitions.csv")
-
     for _, line in df_competitions.iterrows():
-        if not os.path.exists(os.path.join(os.getcwd(), 'data', line['name'])):
+        if not os.path.exists(os.path.join(os.getcwd(), "data", line["name"])):
             links_season = generate_seasons_links(line)
             get_matchs_urls(links_season, line)

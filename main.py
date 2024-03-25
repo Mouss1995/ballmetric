@@ -3,6 +3,10 @@
 
 """Module in order to launch scraping"""
 
+import logging
+
+logging.basicConfig(filename="errors.log", level=logging.ERROR)
+
 from functions.update import update_matchs_urls
 
 from functions.scrap import (
@@ -37,7 +41,7 @@ from functions.insert_postgres import (
 )
 
 if __name__ == "__main__":
-    update_matchs_urls()
+    # update_matchs_urls()
     connection = open_connection_postgresql()
     folders = get_folders_competitions()
     for folder in folders:
@@ -69,4 +73,5 @@ if __name__ == "__main__":
                 print(f"\t\u2705 {name_file}")
             except Exception as e:
                 print(f"\t\u274c Error processing {url[1]}: {e}")
+                logging.error(f"\t\u274c Error processing {url[1]}: {e}")
     connection.close()

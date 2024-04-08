@@ -15,11 +15,11 @@ def clean_general_informations(match: dict, season: str) -> None:
     Return: None
     """
     match["season"] = season
-    if "time" in match:
-        match["time"] = match["time"].replace(" (venue time)", "")
-    if "date" in match:
-        date_object = datetime.strptime(match["date"], "%A %B %d, %Y")
-        match["date"] = date_object.strftime("%d-%m-%Y")
+    if "time_match" in match:
+        match["time_match"] = match["time_match"].replace(" (venue time)", "")
+    if "date_match" in match:
+        date_object = datetime.strptime(match["date_match"], "%A %B %d, %Y")
+        match["date_match"] = date_object.strftime("%d-%m-%Y")
 
 
 def clean_competition(match: dict) -> None:
@@ -91,32 +91,6 @@ def clean_manager_captain(match: dict) -> None:
             match.pop("".join(["manager_captain_", type_team]), None)
 
 
-def clean_season_history(match: dict) -> None:
-    """
-    Cleaning season history of the match
-    Args:
-        match (dict): dict that contains match data
-    Return: None
-    """
-    for type_team in ["season_history_h", "season_history_a"]:
-        if type_team in match:
-            if not isinstance(match[type_team], list):
-                pattern_history = r"\b\d{1,2}-\d{1,2}-\d{1,2}\b"
-                result = re.search(pattern_history, match[type_team])
-                if result:
-                    history_season = match[type_team].split("-")
-                    match[type_team] = match[type_team].split("-")
-                    match[type_team] = {
-                        "victory": int(history_season[0]),
-                        "draw": int(history_season[1]),
-                        "defeat": int(history_season[2]),
-                    }
-                else:
-                    match.pop(type_team, None)
-            else:
-                match.pop(type_team, None)
-
-
 def clean_attendance_stade_avenue(match: dict) -> None:
     """
     Cleaning attendance/stade/avenue of the match
@@ -161,7 +135,7 @@ def clean_lineup_formation(match: dict) -> None:
     Return: None
     """
 
-    for type_team in ["h", "a"]:
+    for type_team in ["home", "away"]:
         if "".join(["lineup_", type_team]) in match:
             el_lineup = "".join(["lineup_", type_team])
             lineup = match[el_lineup].split("\n")

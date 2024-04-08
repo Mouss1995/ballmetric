@@ -2,15 +2,17 @@
 
 """Functions in order to scrap matchs"""
 
-import time
 import json
-import random
 import os
+import random
+import time
+from io import StringIO
 
+import duckdb
 import pandas as pd
 import requests
-from bs4 import BeautifulSoup
 import simplejson
+from bs4 import BeautifulSoup
 
 
 def get_html_content(url: str) -> BeautifulSoup:
@@ -46,14 +48,6 @@ def get_match_informations(soup: BeautifulSoup) -> None:
             "selector": ".scorebox div:nth-of-type(2) strong a",
         },
         {"id": "competition", "selector": ".box > div:nth-of-type(1)"},
-        {
-            "id": "season_history_h",
-            "selector": ".scorebox div:nth-of-type(1) div:nth-of-type(3)",
-        },
-        {
-            "id": "season_history_a",
-            "selector": ".scorebox div:nth-of-type(2) div:nth-of-type(3)",
-        },
         {"id": "notes", "selector": ".scorebox_meta div:nth-of-type(4)"},
         {"id": "penalties", "selector": "div.score_pen"},
         {
@@ -64,14 +58,14 @@ def get_match_informations(soup: BeautifulSoup) -> None:
             "id": "manager_captain_a",
             "selector": ".scorebox > div:nth-of-type(2)",
         },
-        {"id": "date", "selector": ".scorebox_meta strong a"},
-        {"id": "time", "selector": "span.venuetime"},
+        {"id": "date_match", "selector": ".scorebox_meta strong a"},
+        {"id": "time_match", "selector": "span.venuetime"},
         {
             "id": "attendance_venue_officials",
             "selector": ".scorebox_meta div:nth-of-type(n+5)",
         },
-        {"id": "lineup_h", "selector": "div#a.lineup"},
-        {"id": "lineup_a", "selector": "div#b.lineup"},
+        {"id": "lineup_home", "selector": "div#a.lineup"},
+        {"id": "lineup_away", "selector": "div#b.lineup"},
         {
             "id": "possession",
             "selector": "#team_stats tr:nth-of-type(n+2) th, td > div > div:nth-of-type(1)",
@@ -120,6 +114,42 @@ def rename_columns_players_stats(lst_dfs: list) -> list:
     return lst_dfs
 
 
+def convert_tables_to_dfs(tables) -> list:
+    """
+    Convert tables from soup element to dfs
+    Args:
+        tables (BeautifulSoup): soup element
+    Return:
+        list: list of dataframes
+    """
+    dataframes = []
+    for table in tables:
+        with StringIO(str(table)) as html_buffer:
+            df = pd.read_html(html_buffer)[0]
+            df = df.drop_duplicates()
+            dataframes.append(df)
+    return dataframes
+
+
+def merge_dataframes(liste_dataframes):
+    """
+    Merge table from players statistics
+    Args:
+        tables (BeautifulSoup): soup element
+    Return:
+        list: list of dataframes
+    """
+    merged_df = liste_dataframes[0]
+    for df in liste_dataframes[1:]:
+        new_cols = [col for col in df.columns if col not in merged_df.columns]
+        merged_df = pd.merge(
+            merged_df, df[new_cols + ["player"]], on="player", how="outer"
+        )
+    q = """SELECT * FROM merged_df WHERE player NOT LIKE '% Players%'"""
+    merged_df = duckdb.sql(q).df()
+    return merged_df
+
+
 def get_players_stats(soup: BeautifulSoup, match: dict) -> None:
     """
     Get players statistics
@@ -153,48 +183,28 @@ def get_players_stats(soup: BeautifulSoup, match: dict) -> None:
         },
     ]
 
+    home_stats, away_stats = [], []
+    match["player_stats"] = {"home": [], "away": []}
     for selectors in selectors_table:
         tables = soup.select(selectors["selector"])
-
         if tables:
-            dataframes = []
-            for table in tables:
-                df_passing = pd.read_html(str(table))[0]
-                dataframes.append(df_passing)
-
+            dataframes = convert_tables_to_dfs(tables)
             dataframes = rename_columns_players_stats(dataframes)
-
             if len(dataframes) > 2 and selectors["id"] == "passing":
-                dataframes[0] = dataframes[0].drop_duplicates()
-                dataframes[1] = dataframes[1].drop_duplicates()
-                dataframes[2] = dataframes[2].drop_duplicates()
-                dataframes[3] = dataframes[3].drop_duplicates()
-                home_stats = (
-                    pd.merge(dataframes[0], dataframes[1])
-                    .set_index("player")
-                    .to_dict(orient="index")
-                )
-                away_stats = (
-                    pd.merge(dataframes[2], dataframes[3])
-                    .set_index("player")
-                    .to_dict(orient="index")
-                )
+                home_stats.append(pd.merge(dataframes[0], dataframes[1]))
+                away_stats.append(pd.merge(dataframes[2], dataframes[3]))
             else:
                 dataframes[0] = dataframes[0].drop_duplicates()
                 dataframes[1] = dataframes[1].drop_duplicates()
-                home_stats = dataframes[0].set_index("player").to_dict(orient="index")
-                away_stats = dataframes[1].set_index("player").to_dict(orient="index")
+                home_stats.append(dataframes[0])
+                away_stats.append(dataframes[1])
 
-            if "players_stats" not in match:
-                match["players_stats"] = {"home": {}, "away": {}}
-            for type_team, stats in [("home", home_stats), ("away", away_stats)]:
-                for player, player_stats in stats.items():
-                    if " Players" not in player:
-                        team_players_stats = match["players_stats"][type_team]
-                        team_players_stats.setdefault(player, {}).update(player_stats)
-
-    match["players_stats"] = simplejson.loads(
-        simplejson.dumps(match["players_stats"], ignore_nan=True)
+    home_stats = merge_dataframes(home_stats)
+    away_stats = merge_dataframes(away_stats)
+    match["player_stats"]["home"] = home_stats.to_dict(orient="records")
+    match["player_stats"]["away"] = away_stats.to_dict(orient="records")
+    match["player_stats"] = simplejson.loads(
+        simplejson.dumps(match["player_stats"], ignore_nan=True)
     )
 
 
@@ -209,21 +219,17 @@ def get_gk_stats(soup: BeautifulSoup, match: dict) -> None:
     """
     tables = soup.select("table[id*=keeper]")
     if tables:
-        dataframes = []
-        for table in tables:
-            df_passing = pd.read_html(str(table))[0]
-            dataframes.append(df_passing)
+        match["goalkeeper_stats"] = {"home": [], "away": []}
+        gk_home, gk_away = [], []
+        dataframes = convert_tables_to_dfs(tables)
         dataframes = rename_columns_players_stats(dataframes)
         if len(dataframes) == 2:
-            match["goalkeeper_stats"] = {"home": {}, "away": {}}
-            home_stats = dataframes[0].set_index("player").to_dict(orient="index")
-            away_stats = dataframes[1].set_index("player").to_dict(orient="index")
-            for type_team, stats in [("home", home_stats), ("away", away_stats)]:
-                for player, player_stats in stats.items():
-                    match["goalkeeper_stats"][type_team].setdefault(player, {}).update(
-                        player_stats
-                    )
-
+            gk_home.append(dataframes[0].drop_duplicates())
+            gk_away.append(dataframes[1].drop_duplicates())
+            gk_home = merge_dataframes(gk_home)
+            gk_away = merge_dataframes(gk_away)
+            match["goalkeeper_stats"]["home"] = gk_home.to_dict(orient="records")
+            match["goalkeeper_stats"]["away"] = gk_away.to_dict(orient="records")
             match["goalkeeper_stats"] = simplejson.loads(
                 simplejson.dumps(match["goalkeeper_stats"], ignore_nan=True)
             )
@@ -240,20 +246,10 @@ def get_shots_stats(soup: BeautifulSoup, match: dict) -> None:
     """
     tables = soup.select("table[id*=shots_all]")
     if tables:
-        match["shots"] = {}
-        dataframes = []
-        for table in tables:
-            df_passing = pd.read_html(str(table))[0]
-            dataframes.append(df_passing)
+        match["shots"] = []
+        dataframes = convert_tables_to_dfs(tables)
         dataframes = rename_columns_players_stats(dataframes)
-        for minute, sub_df in dataframes[0].groupby("minute"):
-            if len(sub_df) > 1:
-                match["shots"][minute] = [
-                    sub_df.iloc[i, 1:].to_dict() for i in range(len(sub_df))
-                ]
-            else:
-                match["shots"][minute] = sub_df.iloc[0, 1:].to_dict()
-
+        match["shots"] = dataframes[0].to_dict(orient="records")
         match["shots"] = simplejson.loads(
             simplejson.dumps(match["shots"], ignore_nan=True)
         )
@@ -309,9 +305,7 @@ def get_matchs_urls(folder: str) -> list:
 
     if csv_files:
         csv_file = os.path.join(folder, csv_files[0])
-
-        path_folder_json = folder + "/matchs"
-        list_json = os.listdir(path_folder_json)
+        list_json = os.listdir("".join([folder, "/matchs"]))
         list_json = [
             file.replace(".json", "").replace("-", "_")
             for file in list_json

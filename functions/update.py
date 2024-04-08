@@ -14,34 +14,41 @@ from bs4 import BeautifulSoup
 def update_matchs_urls() -> None:
     """Function to update the list of match links"""
 
-    df_competitions = pd.read_csv("competitions/update_competitions.csv")
+    df_competitions = pd.read_csv("competitions/urls_seasons_competitions.csv")
+    df_competitions = df_competitions.sort_values(by=["rank"])
 
     for _, row in df_competitions.iterrows():
         competition_name = row["name"]
-        while True :
+        while True:
             try:
-                print(f"\t===> Update matchs links for {competition_name}")
+
+                print(f"\t\U0001F504 Update matchs links for {competition_name}")
 
                 folder_path = os.path.join("data", competition_name)
                 if not os.path.exists(folder_path):
-                    print(f"\t\t\u274C \U0001F5C2 Folder {competition_name} does not exist")
+                    print(
+                        f"\t\u274C \U0001F5C2 Folder {competition_name} does not exist"
+                    )
                     break
 
                 urls = []
 
-                # Create a dataframe for new links
                 csv_path = os.path.join("data", competition_name, "match_urls.csv")
                 if not os.path.exists(csv_path):
-                    print(f"\t\t\u274C \U0001F5D2 CSV file for {competition_name} does not exist")
+                    print(
+                        f"\t\u274C \U0001F5D2 CSV file for {competition_name} does not exist"
+                    )
                     break
 
-                response = requests.get(row["link"], timeout=10)
+                response = requests.get(row["update_link"], timeout=10)
                 time.sleep(7)
                 soup = BeautifulSoup(response.content, "html.parser")
                 season_element = soup.select("h1")[0].get_text()
                 season_element = re.findall(r"\b\d{4}\b", season_element)
                 season_element = (
-                    season_element[0] if len(season_element) == 1 else "-".join(season_element)
+                    season_element[0]
+                    if len(season_element) == 1
+                    else "-".join(season_element)
                 )
 
                 if season_element:
@@ -53,7 +60,7 @@ def update_matchs_urls() -> None:
                     ]
 
                 if not urls:
-                    print("\t\t\u274C No matches to add \u274C")
+                    print("\t\u274C No matches to add")
                     break
 
                 df_season = pd.DataFrame({"Season": season_element, "Link": urls})
@@ -65,16 +72,13 @@ def update_matchs_urls() -> None:
                 len_after = len(df_matchs)
 
                 if len_after - len_before == 0:
-                    print("\t\t\u274C No matches to add \u274C")
+                    print("\t\u274C No matches to add")
                     break
 
                 df_matchs.to_csv(csv_path, index=False)
                 nbre_matchs = len_after - len_before
-                print(f"\t\t\u2705 {nbre_matchs} match urls added \u2705")
+                print(f"\t\u2705 {nbre_matchs} match urls added")
                 break
 
             except requests.exceptions.Timeout:
-                print(f"Timeout occurred {competition_name}")
-
-if __name__ == "__main__":
-    update_matchs_urls()
+                print(f"\t\u274C Timeout occurred {competition_name}")

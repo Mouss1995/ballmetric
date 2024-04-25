@@ -290,7 +290,7 @@ def get_matchs_urls(cur, folder):
     df_league = pd.read_csv("/".join([folder, "match_urls.csv"]))
     df_league = df_league[~df_league["Link"].isin(df_psql["Link"])]
     match_to_scrap = []
-    for _, row in df_league:
+    for _, row in df_league.iterrows():
         match_to_scrap.append([row["Season"], row["Link"]])
 
     return match_to_scrap

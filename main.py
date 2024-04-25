@@ -11,7 +11,6 @@ from functions.clean import (
     clean_manager_captain,
     clean_notes,
     clean_penalties,
-    clean_possession,
 )
 
 from functions.scrap import (
@@ -22,23 +21,44 @@ from functions.scrap import (
     get_matchs_urls,
     get_players_stats,
     get_shots_stats,
-    save_match,
 )
 
-from functions.insert_postgres import insert_data, open_connection_postgresql
+from functions.insert_postgres import (
+    insert_data,
+    open_connection_postgresql,
+    test_connection_db,
+)
 
 from functions.update import update_matchs_urls
 
-if __name__ == "__main__":
+
+def main():
+    """
+    Main function for scraping matchs
+    and insert to postgresql
+    """
+    print(
+        """
+    ██████╗  █████╗ ██╗     ██╗     ███╗   ███╗███████╗████████╗██████╗ ██╗ ██████╗
+    ██╔══██╗██╔══██╗██║     ██║     ████╗ ████║██╔════╝╚══██╔══╝██╔══██╗██║██╔════╝
+    ██████╔╝███████║██║     ██║     ██╔████╔██║█████╗     ██║   ██████╔╝██║██║     
+    ██╔══██╗██╔══██║██║     ██║     ██║╚██╔╝██║██╔══╝     ██║   ██╔══██╗██║██║     
+    ██████╔╝██║  ██║███████╗███████╗██║ ╚═╝ ██║███████╗   ██║   ██║  ██║██║╚██████╗
+    ╚═════╝ ╚═╝  ╚═╝╚══════╝╚══════╝╚═╝     ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝ ╚═════╝
+                            Scrap matchs from Fbref and add to postgresql database!
+    """
+    )
+    # Test connection db
+    test_connection_db()
     # Update links matchs
     update_matchs_urls()
     # Open connection
     connection = open_connection_postgresql()
     cur = connection.cursor()
-    # Iterateover competitions
+    # Iterate over competitions
     folders = get_folders_competitions()
     for folder in folders:
-        list_urls = get_matchs_urls(folder)
+        list_urls = get_matchs_urls(cur, folder)
         name_competition = folder.split("/")[1]
         print(f"\n\t\U0001f3c6 {name_competition} : {len(list_urls)} matchs to recover")
         # Scrap all new matchs
@@ -46,7 +66,7 @@ if __name__ == "__main__":
             try:
                 # Scrap match
                 soup = get_html_content(url=url[1])
-                match = get_match_informations(soup=soup)
+                match = get_match_informations(soup=soup, url=url[1])
                 get_players_stats(soup, match)
                 get_gk_stats(soup, match)
                 get_shots_stats(soup, match)
@@ -55,16 +75,18 @@ if __name__ == "__main__":
                 clean_competition(match)
                 clean_notes(match)
                 clean_penalties(match)
-                clean_possession(match)
                 clean_manager_captain(match)
                 clean_attendance_stade_avenue(match)
                 clean_lineup_formation(match)
                 # Insert data to postgresql
                 insert_data(match, cur, connection)
-                save_match(match, url[1], folder)
                 name_file = url[1].split("/")[-1].replace("-", "_")
                 print(f"\t\u2705 {name_file}")
             except Exception as e:
                 print(f"\t\u274c Error processing {url[1]}: {e}")
     cur.close()
     connection.close()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,17 +1,86 @@
+# pylint: disable=too-many-locals
+
 """Function script in order to interact with database"""
 
+import os
 from datetime import datetime
 
 import psycopg2
 import yaml
+from colorama import Fore, Style
+from psycopg2 import IntegrityError
+
+
+def create_config_file() -> None:
+    """
+    Create config file for
+    db connection
+    Return : None
+    """
+    database = input("Database: ")
+    host = input("Host: ")
+    username = input("User: ")
+    password = input("Password: ")
+    port = input("Port : ")
+
+    config = {
+        "database": {
+            "dbname": database,
+            "user": username,
+            "password": password,
+            "host": host,
+            "port": port,
+        }
+    }
+
+    with open("config/db_config.yaml", "w", encoding="utf-8") as file:
+        yaml.dump(config, file)
+
+
+def load_config_db() -> None:
+    """
+    Load config file for
+    db connection
+    Return : None
+    """
+    if not os.path.exists("config/db_config.yaml"):
+        create_config_file()
+    with open("config/db_config.yaml", "r", encoding="utf-8") as file:
+        config = yaml.safe_load(file)
+    return config
+
+
+def test_connection_db() -> None:
+    """
+    Load config file for
+    db connection
+    Return : None
+    """
+    config = load_config_db()
+    dbname = config["database"]["dbname"]
+    user = config["database"]["user"]
+    password = config["database"]["password"]
+    host = config["database"]["host"]
+    port = config["database"]["port"]
+    try:
+        conn = psycopg2.connect(
+            dbname=dbname, user=user, password=password, host=host, port=port
+        )
+        print(
+            "\t"
+            + Fore.GREEN
+            + "Connection successfully established to PostgreSQL database"
+            + Style.RESET_ALL
+        )
+        conn.close()
+    except psycopg2.OperationalError as e:
+        print("\t" + Fore.RED + f"Erreur de connexion : {e}" + Style.RESET_ALL)
 
 
 def open_connection_postgresql():
     """Open connexion Postgresql"""
-    with open("config_connection_postgres.yaml", "r", encoding="utf-8") as file:
-        config = yaml.safe_load(file)
+    config = load_config_db()
 
-        # Connexion à la base de données
     conn = psycopg2.connect(
         dbname=config["database"]["dbname"],
         user=config["database"]["user"],
@@ -162,12 +231,28 @@ def insert_data(match: dict, cur, conn) -> None:
                 dict_shot.update(dict_player_match)
 
                 insert_query_shots = (
-                    f"INSERT INTO shots ({', '.join(dict_shot.keys())}) "
+                    f"INSERT INTO shots ({', '.join(dict_shot.keys())})"
                     f"VALUES ({', '.join(['%s'] * len(dict_shot))});"
                 )
                 cur.execute(insert_query_shots, list(dict_shot.values()))
 
+        ########################
+        ### INSERT URL MATCH ###
+        ########################
+        insert_query_url = "INSERT INTO match_urls (url) VALUES (%s);"
+        values = (match["url"],)
+        cur.execute(insert_query_url, values)
         conn.commit()
-    except Exception:
+
+    except IntegrityError as e:
         conn.rollback()
+        print(f"\tErreur de contrainte de clé unique: {e}")
+        insert_query_url = "INSERT INTO match_urls (url) VALUES (%s);"
+        values = (match["url"],)
+        cur.execute(insert_query_url, values)
+        conn.commit()
+        raise
+    except Exception as e:
+        conn.rollback()
+        print("Erreur inattendue:", e)
         raise

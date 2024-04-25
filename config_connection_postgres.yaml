@@ -1,6 +1,0 @@
-database:
-  dbname: "ballmetric"
-  user: "alancuzon"
-  password: "bilbao1995"
-  host: "localhost"
-  port: 5432  

@@ -145,30 +145,3 @@ def clean_lineup_formation(match: dict) -> None:
                 match["".join(["formation_", type_team])] = formation
             except IndexError:
                 match["".join(["formation_", type_team])] = None
-
-
-def clean_possession(match: dict) -> None:
-    """
-    Cleaning possession data
-    Args:
-        match (dict): dict that contains match data
-    Return: None
-    """
-    if "possession" in match:
-        if isinstance(match["possession"], list):
-            if "Possession" in match["possession"]:
-                for index, item in enumerate(match["possession"]):
-                    if item == "Possession":
-                        dict_possession = {}
-                        possession_data = match["possession"][index + 1 : index + 3]
-                        possession_data = [
-                            int(el.replace("%", "")) for el in possession_data
-                        ]
-                        (
-                            dict_possession["possession_h"],
-                            dict_possession["possession_a"],
-                        ) = possession_data
-                        match.pop("possession", None)
-                        break
-            else:
-                match.pop("possession", None)

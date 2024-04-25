@@ -2,7 +2,6 @@
 
 """Functions in order to scrap matchs"""
 
-import json
 import os
 import random
 import time
@@ -30,11 +29,13 @@ def get_html_content(url: str) -> BeautifulSoup:
     return soup
 
 
-def get_match_informations(soup: BeautifulSoup) -> None:
+def get_match_informations(soup: BeautifulSoup, url: str) -> None:
     """
     Get general information about the match
     Args:
         soup (BeautifulSoup): soup element
+        url (str): url of the match in order
+            to put it in the result dict
     Return: None
     """
 
@@ -66,13 +67,10 @@ def get_match_informations(soup: BeautifulSoup) -> None:
         },
         {"id": "lineup_home", "selector": "div#a.lineup"},
         {"id": "lineup_away", "selector": "div#b.lineup"},
-        {
-            "id": "possession",
-            "selector": "#team_stats tr:nth-of-type(n+2) th, td > div > div:nth-of-type(1)",
-        },
     ]
 
     data_dict = {}
+    data_dict["url"] = url
     for selector_info in selectors:
         element = soup.select(selector_info["selector"])
         if element:
@@ -255,24 +253,6 @@ def get_shots_stats(soup: BeautifulSoup, match: dict) -> None:
         )
 
 
-def save_match(match: dict, url_match: str, folder_match: str) -> None:
-    """
-    Save dict match as json
-    Args:
-        match (dict): dict data
-        url_match (str): match url
-        folder_match (str): path to folder
-    Return: None
-    """
-
-    name_json = url_match.split("/")
-    name_json = name_json[len(name_json) - 1].replace("-", "_")
-    with open(
-        folder_match + "/matchs/" + name_json + ".json", "w", encoding="utf-8"
-    ) as f:
-        json.dump(match, f)
-
-
 def get_folders_competitions() -> list:
     """
     Get folder generate from generate_matchs_urls.py
@@ -292,7 +272,7 @@ def get_folders_competitions() -> list:
     return folder_matchs
 
 
-def get_matchs_urls(folder: str) -> list:
+def get_matchs_urls(cur, folder):
     """
     Get matchs urls from CSV files
     Args:
@@ -300,24 +280,17 @@ def get_matchs_urls(folder: str) -> list:
     Return:
         list of match urls
     """
-
     csv_files = [file for file in os.listdir(folder) if file.endswith(".csv")]
+    if not csv_files:
+        return []
+    query = "SELECT * FROM match_urls"
+    cur.execute(query)
+    results = cur.fetchall()
+    df_psql = pd.DataFrame(results, columns=["Link"])
+    df_league = pd.read_csv("/".join([folder, "match_urls.csv"]))
+    df_league = df_league[~df_league["Link"].isin(df_psql["Link"])]
+    match_to_scrap = []
+    for _, row in df_league:
+        match_to_scrap.append([row["Season"], row["Link"]])
 
-    if csv_files:
-        csv_file = os.path.join(folder, csv_files[0])
-        list_json = os.listdir("".join([folder, "/matchs"]))
-        list_json = [
-            file.replace(".json", "").replace("-", "_")
-            for file in list_json
-            if file.endswith(".json")
-        ]
-
-        match_to_scrap = []
-        df_links = pd.read_csv(csv_file)
-        for _, row in df_links.iterrows():
-            if row["Link"].split("/")[6].replace("-", "_") not in list_json:
-                match_to_scrap.append([row["Season"], row["Link"]])
-
-        return match_to_scrap
-
-    return []
+    return match_to_scrap

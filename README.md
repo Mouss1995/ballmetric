@@ -29,15 +29,14 @@ Create and activate virtual environment
 Install dependencies
 
 ```bash
-  pip install -r requirements
+  pip install -r requirements.txt
 ```
 
 ## Setup a local PostgreSQL database
-
+Set up a Postgresql server beforehand. The database connection information must be filled in when the script is launched, if this has not already been done.
 
 
 ## Run Locally
-
 Run the main.py script
 
 ```bash

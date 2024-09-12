@@ -1,0 +1,28 @@
+name: check_code_quality
+
+on:
+  push:
+    branches: ['develop']
+  pull_request:
+    branches: ['main']
+
+jobs:
+  run_quality_checks:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install black pylint
+
+      - name: Check code style with Black
+        run: black --check --verbose .
+
+      - name: Check code quality with Pylint
+        run: pylint main.py functions

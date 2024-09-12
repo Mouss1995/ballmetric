@@ -1,37 +1,44 @@
-# ⚽ Ballmetric ⚽
 
-Ballmetric est une API permettant d'obtenir les feuilles de match concernant le football (ligues et nations).
+![Logo](img/logo-white.png)
 
-## ⚙️ Installation
 
-Use the package manager [pip](https://pip.pypa.io/en/stable/) to install foobar.
+#  Fbref.com Football Data Scraper
+
+This Python project aims to extract football data from the Fbref.com website, transform it, and store it in a PostgreSQL database for analysis purposes. The collected data can be used for advanced analysis, visualizations, or other football-related applications.
+## Installation
+
+Clone the project
 
 ```bash
-pip install foobar
+  git clone https://github.com/Mouss1995/ballmetric.git
 ```
 
-## Usage
+Go to the project directory 
 
-```python
-import foobar
-
-# returns 'words'
-foobar.pluralize('word')
-
-# returns 'geese'
-foobar.pluralize('goose')
-
-# returns 'phenomenon'
-foobar.singularize('phenomena')
+```bash
+  cd ballmetric
 ```
 
-## Contributing
+Create and activate virtual environment 
 
-Pull requests are welcome. For major changes, please open an issue first
-to discuss what you would like to change.
+```bash
+  python3 -m venv venv
+  source venv/bin/activate 
+```
 
-Please make sure to update tests as appropriate.
+Install dependencies
 
-## License
+```bash
+  pip install -r requirements.txt
+```
 
-[MIT](https://choosealicense.com/licenses/mit/)
+## Setup a local PostgreSQL database
+Set up a Postgresql server beforehand. The database connection information must be filled in when the script is launched, if this has not already been done.
+
+
+## Run Locally
+Run the main.py script
+
+```bash
+  ./main.py
+```

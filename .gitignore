@@ -3,9 +3,10 @@
 .DS_Store
 /test
 /venv
-/yaml
 test*
 /sql
-/__pycache__
 /logs
 errors*
+__pycache__
+*.sql
+*.ipynb

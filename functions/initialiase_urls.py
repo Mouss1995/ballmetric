@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pylint: disable=duplicate-code
 
 """ 
 The aim of this script is to generate all the match links for several 
@@ -53,7 +54,6 @@ def get_matchs_urls(links: list, row: pd.Series) -> None:
     Get match urls for each season of
     the competition
     """
-
     type_league = row["type"]
     competition_name = row["name"]
 
@@ -105,7 +105,11 @@ def get_matchs_urls(links: list, row: pd.Series) -> None:
     print(f"\t=======> {len(df_final)} match links retrieved\n")
 
 
-if __name__ == "__main__":
+def initialisation() -> None:
+    """
+    Launch initialisation
+    """
+    os.mkdir("data")
     df_competitions = pd.read_csv("competitions/init_competitions.csv")
     for _, line in df_competitions.iterrows():
         if not os.path.exists(os.path.join(os.getcwd(), "data", line["name"])):

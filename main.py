@@ -3,6 +3,8 @@
 
 """Module in order to launch scraping"""
 
+import os
+
 from functions.clean import (
     clean_attendance_stade_avenue,
     clean_competition,
@@ -12,7 +14,12 @@ from functions.clean import (
     clean_notes,
     clean_penalties,
 )
-
+from functions.initialiase_urls import initialisation
+from functions.insert_postgres import (
+    insert_data,
+    open_connection_postgresql,
+    test_connection_db,
+)
 from functions.scrap import (
     get_folders_competitions,
     get_gk_stats,
@@ -22,13 +29,6 @@ from functions.scrap import (
     get_players_stats,
     get_shots_stats,
 )
-
-from functions.insert_postgres import (
-    insert_data,
-    open_connection_postgresql,
-    test_connection_db,
-)
-
 from functions.update import update_matchs_urls
 
 
@@ -50,8 +50,12 @@ def main():
     )
     # Test connection db
     test_connection_db()
-    # Update links matchs
-    update_matchs_urls()
+    # Link initialisation (if data folder not exist)
+    if not os.path.exists("data/"):
+        initialisation()
+    else:
+        # Update links matchs
+        update_matchs_urls()
     # Open connection
     connection = open_connection_postgresql()
     cur = connection.cursor()

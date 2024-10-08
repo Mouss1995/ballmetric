@@ -1,258 +1,198 @@
-# pylint: disable=too-many-locals
+"""Functions to insert data into a PostgreSQL database."""
 
-"""Function script in order to interact with database"""
-
-import os
-from datetime import datetime
-
+import pandas as pd
 import psycopg2
-import yaml
-from colorama import Fore, Style
-from psycopg2 import IntegrityError
 
 
-def create_config_file() -> None:
+def clean_column_names(df):
     """
-    Create config file for
-    db connection
-    Return : None
-    """
-    database = input("Database: ")
-    host = input("Host: ")
-    username = input("User: ")
-    password = input("Password: ")
-    port = input("Port : ")
+    Cleans the column names of a DataFrame by applying several transformations:
+    - If a column name contains 'level', it keeps only the fourth part after splitting by '_'.
+    - Replaces '#' with 'num' in column names.
+    - Replaces '%' with '_percent' in column names.
+    - Replaces '-' with '_' in column names.
+    - Converts all column names to lowercase.
 
-    config = {
-        "database": {
-            "dbname": database,
-            "user": username,
-            "password": password,
-            "host": host,
-            "port": port,
-        }
-    }
-
-    with open("config/db_config.yaml", "w", encoding="utf-8") as file:
-        yaml.dump(config, file)
-
-
-def load_config_db() -> None:
-    """
-    Load config file for
-    db connection
-    Return : None
-    """
-    if not os.path.exists("config/db_config.yaml"):
-        create_config_file()
-    with open("config/db_config.yaml", "r", encoding="utf-8") as file:
-        config = yaml.safe_load(file)
-    return config
-
-
-def test_connection_db() -> None:
-    """
-    Load config file for
-    db connection
-    Return : None
-    """
-    config = load_config_db()
-    dbname = config["database"]["dbname"]
-    user = config["database"]["user"]
-    password = config["database"]["password"]
-    host = config["database"]["host"]
-    port = config["database"]["port"]
-    try:
-        conn = psycopg2.connect(
-            dbname=dbname, user=user, password=password, host=host, port=port
-        )
-        print(
-            "\t"
-            + Fore.GREEN
-            + "Connection successfully established to PostgreSQL database"
-            + Style.RESET_ALL
-        )
-        conn.close()
-    except psycopg2.OperationalError as e:
-        print("\t" + Fore.RED + f"Erreur de connexion : {e}" + Style.RESET_ALL)
-
-
-def open_connection_postgresql():
-    """Open connexion Postgresql"""
-    config = load_config_db()
-
-    conn = psycopg2.connect(
-        dbname=config["database"]["dbname"],
-        user=config["database"]["user"],
-        password=config["database"]["password"],
-        host=config["database"]["host"],
-        port=config["database"]["port"],
-    )
-
-    return conn
-
-
-def insert_data(match: dict, cur, conn) -> None:
-    """
-    Insert data to postgresql
     Args:
-        match (dict): match data
-        cur: cursor from open_connection_postgresql
-            function
-        conn: connection from open_connection_postgresql
-            function
-    Return:
-        None
+        df (pd.DataFrame): The DataFrame whose column names need to be cleaned.
+
+    Returns:
+        pd.DataFrame: The DataFrame with cleaned column names.
     """
     try:
-        #########################
-        ### INSERT MATCH INFOS ###
-        #########################
-        match_keys = [
-            "team_h",
-            "team_a",
-            "date_match",
-            "season",
-            "competition",
-            "time_match",
-            "matchweek",
-            "round",
-            "notes",
-            "manager_h",
-            "manager_a",
-            "captain_h",
-            "captain_a",
-            "attendance",
-            "venue",
-            "formation_home",
-            "formation_away",
-            "referee",
-            "ar1",
-            "ar2",
-            "fourth",
-            "var",
-            "penalties_h",
-            "penalties_a",
+        df.columns = [
+            col.split("_")[3] if "level" in col else col for col in df.columns
         ]
-        dict_match = dict((k, match[k]) for k in match_keys if k in match)
-        dict_match["date_match"] = datetime.strptime(
-            match["date_match"], "%d-%m-%Y"
-        ).strftime("%Y-%m-%d")
-
-        insert_query_players = f"""INSERT INTO matchs
-            ({', '.join(dict_match.keys())}) VALUES ({', '.join(['%s'] * len(dict_match))});"""
-
-        cur.execute(insert_query_players, list(dict_match.values()))
-
-        for type_team in ["home", "away"]:
-            ############################
-            ### INSERT PLAYERS STATS ###
-            ############################
-            for dict_player in match["player_stats"][type_team]:
-
-                lineup_players = "_".join(["lineup", type_team])
-
-                if lineup_players in match:
-                    holder = (
-                        1
-                        if dict_player["player"]
-                        in match[lineup_players].split("Bench")[0]
-                        else 0
-                    )
-                else:
-                    holder = None
-
-                dict_player_match = {
-                    "team_h": match["team_h"],
-                    "team_a": match["team_a"],
-                    "date_match": datetime.strptime(
-                        match["date_match"], "%d-%m-%Y"
-                    ).strftime("%Y-%m-%d"),
-                    "player_team": (
-                        match["team_h"] if type_team == "home" else match["team_a"]
-                    ),
-                    "holder": holder,
-                }
-
-                dict_player.update(dict_player_match)
-
-                insert_query_players = (
-                    f"INSERT INTO player_stats ({', '.join(dict_player.keys())})"
-                    f"VALUES ({', '.join(['%s'] * len(dict_player))});"
-                )
-
-                cur.execute(insert_query_players, list(dict_player.values()))
-
-            ################################
-            ### INSERT GOALKEEPERS STATS ###
-            ################################
-            if "goalkeeper_stats" in match:
-                for dict_player_goalkeeper in match["goalkeeper_stats"][type_team]:
-
-                    dict_player_match = {
-                        "team_h": match["team_h"],
-                        "team_a": match["team_a"],
-                        "date_match": datetime.strptime(
-                            match["date_match"], "%d-%m-%Y"
-                        ).strftime("%Y-%m-%d"),
-                        "player_team": (
-                            match["team_h"] if type_team == "home" else match["team_a"]
-                        ),
-                    }
-
-                    dict_player_goalkeeper.update(dict_player_match)
-
-                    insert_query_goalkeeper = (
-                        f"INSERT INTO goalkeeper_stats ({', '.join(dict_player_goalkeeper.keys())})"
-                        f"VALUES ({', '.join(['%s'] * len(dict_player_goalkeeper))});"
-                    )
-
-                    cur.execute(
-                        insert_query_goalkeeper, list(dict_player_goalkeeper.values())
-                    )
-
-        ##########################
-        ### INSERT SHOTS STATS ###
-        ##########################
-        if "shots" in match:
-            for dict_shot in match["shots"]:
-
-                if all(value is None for value in dict_shot.values()):
-                    continue
-
-                dict_player_match = {
-                    "team_h": match["team_h"],
-                    "team_a": match["team_a"],
-                    "date_match": datetime.strptime(
-                        match["date_match"], "%d-%m-%Y"
-                    ).strftime("%Y-%m-%d"),
-                }
-
-                dict_shot.update(dict_player_match)
-
-                insert_query_shots = (
-                    f"INSERT INTO shots ({', '.join(dict_shot.keys())})"
-                    f"VALUES ({', '.join(['%s'] * len(dict_shot))});"
-                )
-                cur.execute(insert_query_shots, list(dict_shot.values()))
-
-        ########################
-        ### INSERT URL MATCH ###
-        ########################
-        insert_query_url = "INSERT INTO match_urls (url) VALUES (%s);"
-        values = (match["url"],)
-        cur.execute(insert_query_url, values)
-        conn.commit()
-
-    except IntegrityError as e:
-        conn.rollback()
-        print(f"\tErreur de contrainte de clé unique: {e}")
-        insert_query_url = "INSERT INTO match_urls (url) VALUES (%s);"
-        values = (match["url"],)
-        cur.execute(insert_query_url, values)
-        conn.commit()
+        df.columns = [
+            col.replace("#", "num") if "#" in col else col for col in df.columns
+        ]
+        df.columns = [
+            col.replace("%", "_percent") if "%" in col else col for col in df.columns
+        ]
+        df.columns = [
+            col.replace("-", "_") if "-" in col else col for col in df.columns
+        ]
+        df.columns = [col.lower() for col in df.columns]
+        return df
+    except Exception as e:
+        print(f"Erreur : {e}")
         raise
+
+
+def check_missing_cols(
+    df: pd.DataFrame, table_name: str, cur: psycopg2.extensions.cursor
+) -> list:
+    """
+    Checks for missing columns in a DataFrame compared to a database table.
+
+    Parameters:
+    df (pd.DataFrame): The DataFrame to check.
+    table_name (str): The name of the table in the database.
+    cur: The database cursor used to execute SQL queries.
+
+    Returns:
+    list: A list of column names that are in the DataFrame but not in the database table.
+    """
+    try:
+        cur.execute(
+            f"""
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = '{table_name}';
+        """
+        )
+        columns_df = df.columns.tolist()
+        columns_table = [col[0] for col in cur.fetchall()]
+
+        s = set(columns_table)
+        temp3 = [x for x in columns_df if x not in s]
+
+        return temp3
+    except Exception as e:
+        print(f"Erreur dans le check des colonnes manquantes: {e}")
+        raise
+
+
+def add_columns(table_name: str, col: str, cur: psycopg2.extensions.cursor) -> None:
+    """
+    Adds a new column to an existing table in the database.
+
+    Parameters:
+    table_name (str): The name of the table to which the column will be added.
+    col (str): The name of the new column to be added.
+    cur: The database cursor object used to execute the SQL command.
+
+    Returns:
+    None
+
+    Raises:
+    Exception: If there is an error executing the SQL command.
+    """
+    try:
+        cur.execute(
+            f"""
+            ALTER TABLE {table_name}
+            ADD COLUMN "{col}" VARCHAR;
+        """
+        )
+        print(f"Colonnes : {col} ajoutée avec succès !")
+    except Exception as e:
+        print(f"Erreur : {e}")
+        raise
+
+
+def create_table_from_dataframe(
+    df: pd.DataFrame, table_name: str, cur: psycopg2.extensions.cursor
+) -> None:
+    """
+    Create a table in the PostgreSQL database based on the DataFrame's columns.
+
+    Args:
+        df (pd.DataFrame): The DataFrame whose columns will be used to create the table.
+        table_name (str): The name of the table to be created.
+        cur (psycopg2.extensions.cursor): The cursor object for PostgreSQL.
+    """
+    try:
+        quoted_columns = [f'"{column}" VARCHAR' for column in df.columns.tolist()]
+        columns_str = ", ".join(quoted_columns)
+        create_table_query = f"CREATE TABLE IF NOT EXISTS {table_name} ({columns_str});"
+        cur.execute(create_table_query)
+    except Exception as e:
+        print(f"Erreur : {e}")
+        raise
+
+
+def create_table_url(
+    cur: psycopg2.extensions.cursor, conn: psycopg2.extensions.connection
+) -> None:
+    """
+    Creates a table named 'urls_match' in the database if it does not already exist.
+
+    Args:
+        cur (Any): The database cursor object used to execute SQL commands.
+        conn (Any): The database connection object used to commit or rollback transactions.
+    """
+    try:
+        create_table_url = 'CREATE TABLE IF NOT EXISTS urls_match ("url" VARCHAR);'
+        cur.execute(create_table_url)
+        conn.commit()
+    except Exception as e:
+        print(f"Erreur dans la création de la table urls_match: {e}")
+        conn.rollback()
+        raise
+
+
+def insert_dataframe_to_table(df: pd.DataFrame, table_name: str, cur) -> None:
+    """
+    Inserts the data from a pandas DataFrame into a specified SQL table.
+
+    Args:
+        df (pd.DataFrame): The DataFrame containing the data to be inserted.
+        table_name (str): The name of the SQL table where the data will be inserted.
+        cur: The database cursor object used to execute the SQL commands.
+    """
+    try:
+        placeholders = ", ".join(["%s"] * len(df.columns))
+        insert_query = f"""
+        INSERT INTO {table_name} ({'"' + '", "'.join(df.columns) + '"'}) VALUES ({placeholders})
+        """
+        for row in df.itertuples(index=False, name=None):
+            cur.execute(insert_query, row)
+    except Exception as e:
+        print(f"Erreur : {e}")
+        raise
+
+
+def insert_to_postgresql(
+    dataframe: pd.DataFrame,
+    table_name: str,
+    cur: psycopg2.extensions.cursor,
+    conn: psycopg2.extensions.connection,
+) -> None:
+    """
+    Insert a DataFrame into a PostgreSQL table.
+
+    This function cleans the column names of the DataFrame, creates the table if it doesn't exist,
+    checks for missing columns in the table and adds them if necessary, and inserts the DataFrame
+    into the table.
+
+    Args:
+        dataframe (pd.DataFrame): The DataFrame to be inserted.
+        table_name (str): The name of the table in PostgreSQL.
+        cur (psycopg2.extensions.cursor): The cursor object for PostgreSQL.
+        conn (psycopg2.extensions.connection): The connection object for PostgreSQL.
+    """
+    try:
+        dataframe = clean_column_names(dataframe)
+        create_table_from_dataframe(dataframe, table_name, cur)
+
+        missing_columns = check_missing_cols(dataframe, table_name, cur)
+        if missing_columns:
+            print(f"Voici les colonnes manquantes {missing_columns}")
+            for col_missing in missing_columns:
+                add_columns(table_name, col_missing, cur)
+        insert_dataframe_to_table(dataframe, table_name, cur)
+        conn.commit()
     except Exception as e:
         conn.rollback()
-        print("Erreur inattendue:", e)
-        raise
+        print(f"Erreur dans l'insertion du matchs: {e}")
